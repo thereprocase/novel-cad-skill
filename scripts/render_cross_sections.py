@@ -35,6 +35,7 @@ from spec_format import load_spec
 BG_COLOR = '#2B2B2B'
 PART_FILL = (0.24, 0.55, 0.75)
 PART_EDGE = (0.35, 0.70, 0.90)
+HATCH_COLOR = (0.14, 0.35, 0.50)  # darker teal for section hatching
 DIM_LINE_COLOR = '#FFFFFF'
 DIM_TEXT_COLOR = '#D0D0D0'
 SCALE_BAR_COLOR = '#AAAAAA'
@@ -623,11 +624,16 @@ def render_single_section(mesh, cut_info, output_path, spec=None):
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_facecolor(BG_COLOR)
 
+    import matplotlib as mpl
+    mpl.rcParams['hatch.linewidth'] = 0.6
+    mpl.rcParams['hatch.color'] = HATCH_COLOR
+
     for poly in polygons:
         ext = np.array(poly.exterior.coords)
         patch = mpatches.Polygon(ext, closed=True,
                                   facecolor=PART_FILL, edgecolor=PART_EDGE,
-                                  linewidth=1.0, alpha=0.95)
+                                  linewidth=1.5, alpha=0.95,
+                                  hatch='//')
         ax.add_patch(patch)
 
         for interior in poly.interiors:
@@ -635,7 +641,7 @@ def render_single_section(mesh, cut_info, output_path, spec=None):
             hole_patch = mpatches.Polygon(int_coords, closed=True,
                                            facecolor=BG_COLOR,
                                            edgecolor=PART_EDGE,
-                                           linewidth=0.8, alpha=1.0)
+                                           linewidth=1.0, alpha=1.0)
             ax.add_patch(hole_patch)
 
     ax.set_xlim(xmin - margin, xmax + margin)
@@ -643,8 +649,14 @@ def render_single_section(mesh, cut_info, output_path, spec=None):
     ax.set_aspect('equal')
 
     # -- Dimension annotations ----
+    # Match expected dimensions by closest measured value, not by assumed h/v
+    # position. trimesh to_2D() can rotate axes for non-XY cuts (e.g. XZ side
+    # profile may swap horizontal/vertical relative to world axes).
+    overall_expected = [e for e in expected
+                        if e['type'] in ('overall_h', 'overall_v')]
+
     if ow > 0.1:
-        spec_match = _find_expected(expected, 'overall_h', ow)
+        spec_match = _find_closest_expected(overall_expected, ow)
         dim_label = _format_dim(ow, spec_match)
         _draw_dimension_h(ax,
                           row_max, col_min, col_max,
@@ -653,7 +665,7 @@ def render_single_section(mesh, cut_info, output_path, spec=None):
                           offset_px=60)
 
     if oh > 0.1:
-        spec_match = _find_expected(expected, 'overall_v', oh)
+        spec_match = _find_closest_expected(overall_expected, oh)
         dim_label = _format_dim(oh, spec_match)
         _draw_dimension_v(ax,
                           col_max, row_min, row_max,
@@ -763,6 +775,32 @@ def _find_expected(expected_list, dim_type, measured_value):
     for e in expected_list:
         if e['type'] == dim_type:
             return e
+    return None
+
+
+def _find_closest_expected(expected_list, measured_value):
+    """Find the expected dimension whose value is closest to measured_value.
+
+    Used for overall dimension annotations where trimesh to_2D() may rotate
+    axes relative to world coordinates. Matching by closest value is more
+    robust than assuming horizontal/vertical position maps to spec h/v type.
+
+    Each matched entry is consumed (removed) to prevent double-matching.
+    """
+    if not expected_list:
+        return None
+    best_idx = None
+    best_diff = float('inf')
+    for i, e in enumerate(expected_list):
+        val = e.get('value', 0)
+        if val <= 0:
+            continue
+        diff = abs(val - measured_value)
+        if diff < best_diff:
+            best_diff = diff
+            best_idx = i
+    if best_idx is not None:
+        return expected_list.pop(best_idx)
     return None
 
 

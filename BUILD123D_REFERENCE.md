@@ -269,7 +269,29 @@ with BuildPart() as part:
     # now add new features...
 ```
 
-### 8. Bounding box attribute names
+### 8. Algebra-mode subtraction with rotated cutters
+Algebra-mode `Part - cutter` does NOT clip the cutter to the target body's extent. If the cutter extends beyond the target (e.g. a rotated box reaching below Z=0), the result includes the cutter's full envelope — inflating the bounding box.
+
+**Always use in-context operations for angled cuts:**
+```python
+# WRONG: algebra-mode cutter extends beyond part
+slot_cutter = Box(10, 80, 60).rotate(Axis.Y, 20).moved(Location((x, y, z)))
+result = part.part - slot_cutter  # bounding box may be too large
+
+# RIGHT: in-context tilted workplane, bounded by existing solid
+with BuildPart() as part:
+    add(base)
+    tilted_plane = Plane(
+        origin=(x, y, z),
+        z_dir=(sin(angle), 0, cos(angle)),
+        x_dir=(0, 1, 0),
+    )
+    with BuildSketch(tilted_plane):
+        Rectangle(slot_length, slot_width)
+    extrude(amount=depth, both=True, mode=Mode.SUBTRACT)
+```
+
+### 9. Bounding box attribute names
 ```python
 bb = part.bounding_box()
 # Dimensions:

@@ -152,6 +152,8 @@ If needed, handle text BEFORE mechanical features.
 - Run self-review checklist for things scripts can't check.
 - Present **parameter table** for quick tweaks.
 
+> **Note:** For simple parts where Phase 1 already applied bottom chamfers and Phase 2 added all features, Phase 3 may involve no geometry changes — just final validation and 3MF export. This is expected. Phase 3 earns its keep on complex parts requiring support blockers, seam placement, or multi-body print optimization.
+
 > **GATE: Do not deliver the final part without user approval of Phase 3.**
 
 ### Phase 4: Multi-Part Assemblies (when needed)
@@ -498,6 +500,7 @@ When importing a prior-phase STEP that contains features taller than the current
 | Problem | Solution |
 |---------|----------|
 | Builder context boolean fails silently | Use `snapshot(part)` before, then `verify_result(part, before, name)` after every subtraction. |
+| Chamfer/fillet fails on union body | Union of two boxes creates short edges at the intersection. Chamfer/fillet radius exceeds edge length → `StdFail_NotDone`. For stepped/L-shaped bodies, extrude from a single profile sketch instead of unioning boxes. |
 | Fillet fails on edge | Try smaller radius or chamfer instead. Some edge combinations confuse OCCT. |
 | Shell fails | Reduce fillet radii before shelling. Or: fillet exterior, then shell — shell propagates fillet inward. |
 | Two fillet types on same solid fail | Apply one fillet type, then add the second after a cut/union using `.filter_by()` to isolate target edges. |
@@ -509,3 +512,4 @@ When importing a prior-phase STEP that contains features taller than the current
 | Feature dimensions mismatch in validator | Check that spec values match parameter values. A mismatch means spec was written with different values than the geometry used. |
 | 3MF export fails | Run `export_3mf.py` on the STEP file. If STEP is valid but 3MF fails, this is a tessellation issue — check Manifold validation. |
 | Preview has triangle mesh lines | You're rendering from STL. Render from STEP instead. |
+| Algebra-mode subtraction produces wrong bounding box | Algebra `Part - cutter` preserves the full extent of the cutter, even beyond the target body. Use in-context operations (BuildPart + tilted `Plane()`) for angled cuts. |
