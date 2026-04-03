@@ -81,58 +81,12 @@ def _extract_face_groups_from_step(step_path, tolerance=0.05):
     """
     Load STEP and return per-B-rep-face triangle groups.
 
-    Tries build123d first; falls back to CadQuery. Both use the same OCC
-    tessellation path underneath, so the triangle output is identical.
+    Uses the shared mesh_utils path for consistent tessellation.
     """
-    from OCP.TopExp import TopExp_Explorer
-    from OCP.TopAbs import TopAbs_FACE
-    from OCP.BRep import BRep_Tool
-    from OCP.TopLoc import TopLoc_Location
-    from OCP.BRepMesh import BRepMesh_IncrementalMesh
-    from OCP.TopoDS import TopoDS
-
-    solid = None
-    try:
-        from build123d import import_step
-        shape = import_step(step_path)
-        solid = shape.wrapped
-    except (ImportError, Exception):
-        pass
-
-    if solid is None:
-        try:
-            import cadquery as cq
-            shape = cq.importers.importStep(step_path)
-            solid = shape.val().wrapped
-        except Exception as e:
-            raise ValueError(f"Could not load STEP with build123d or CadQuery: {e}")
-
-    BRepMesh_IncrementalMesh(solid, tolerance, False, 0.1)
-
-    groups = []
-    exp = TopExp_Explorer(solid, TopAbs_FACE)
-    while exp.More():
-        face = TopoDS.Face_s(exp.Current())
-        loc = TopLoc_Location()
-        poly = BRep_Tool.Triangulation_s(face, loc)
-        if poly is not None:
-            trsf = loc.Transformation()
-            is_identity = loc.IsIdentity()
-            nodes = []
-            for i in range(1, poly.NbNodes() + 1):
-                p = poly.Node(i)
-                if not is_identity:
-                    p = p.Transformed(trsf)
-                nodes.append([p.X(), p.Y(), p.Z()])
-            tris = []
-            for i in range(1, poly.NbTriangles() + 1):
-                t = poly.Triangle(i)
-                i1, i2, i3 = t.Get()
-                tris.append([i1 - 1, i2 - 1, i3 - 1])
-            if nodes and tris:
-                groups.append((np.array(nodes), np.array(tris)))
-        exp.Next()
-    return groups
+    _SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, os.path.join(_SKILL_DIR, "lib"))
+    from mesh_utils import load_face_groups_from_step
+    return load_face_groups_from_step(step_path, tolerance)
 
 
 def _load_stl_triangles(stl_path):

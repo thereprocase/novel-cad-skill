@@ -136,13 +136,25 @@ class GateEnforcer:
             prev_sub = chr(ord(sub) - 1)
             return f"phase_{num}{prev_sub}"
 
-        # Non-sub phase like phase_3: predecessor is the last phase_2x or phase_2
+        # Non-sub phase like phase_3: ALL sub-phases of the prior major
+        # phase must be approved. Return the first unapproved one so
+        # begin_phase() blocks on it, or the last one if all are approved.
+        import re as re2
+        prior_num = num - 1
+        prior_prefix = f"phase_{prior_num}"
         all_phases = sorted(self._state["phases"].keys(), key=self._phase_order_key)
-        candidates = [p for p in all_phases
-                      if self._phase_order_key(p) < self._phase_order_key(phase)]
-        if not candidates:
-            return None
-        return candidates[-1]
+        prior_phases = [p for p in all_phases
+                        if re2.match(rf"phase_{prior_num}[a-z]?$", p)]
+        if not prior_phases:
+            # No sub-phases recorded for prior major phase — use phase_N directly
+            return prior_prefix
+
+        # Check each sub-phase; return the first unapproved one
+        for p in prior_phases:
+            if self._state["phases"].get(p, {}).get("status") != "approved":
+                return p
+        # All approved — return the last one (begin_phase will see it's approved)
+        return prior_phases[-1]
 
     # -- Public API -----------------------------------------------------------
 

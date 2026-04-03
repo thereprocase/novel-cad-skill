@@ -234,8 +234,9 @@ def _find_nearest_hole(shape, expected_diameter, position=None):
     candidates = []
 
     if _ENGINE == "build123d":
+        from build123d import GeomType
         for edge in shape.edges():
-            if edge.geom_type() == "CIRCLE":
+            if edge.geom_type == GeomType.CIRCLE:
                 radius = edge.radius
                 diameter = radius * 2.0
                 center = edge.center()
@@ -375,7 +376,10 @@ def check_features(shape, spec):
 
         elif feat_type == "pattern":
             # Pattern features: check one representative element
-            element_w = feat.get("element_width", 0)
+            element = feat.get("element", {})
+            element_w = element.get("width", 0)
+            if element_w == 0:
+                element_w = element.get("diameter", 0)
             count = feat.get("count", 0)
             label = f"Pattern '{name}' ({count} elements)"
             if element_w > 0 and count > 0:
@@ -384,7 +388,7 @@ def check_features(shape, spec):
                     f"(full validation via cross-section renderer)"))
             else:
                 results.append(_warn(label,
-                    "pattern declared but element_width or count missing -- "
+                    "pattern declared but element width/diameter or count missing -- "
                     "verify visually in cross-sections"))
 
     return results

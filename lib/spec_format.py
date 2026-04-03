@@ -276,9 +276,13 @@ def create_spec(name: str, width: float = 0, depth: float = 0,
     }
     raw.update(kwargs)
 
-    # Let tolerance pass through to overall_dimensions if given as a kwarg
-    if "tolerance" in kwargs:
-        raw["overall_dimensions"]["tolerance"] = kwargs.pop("tolerance")
+    # Let tolerance pass through to overall_dimensions if given as a kwarg.
+    # Pop from raw (not kwargs) to remove the phantom top-level key
+    # that raw.update(kwargs) created.
+    if "tolerance" in raw and "tolerance" not in raw.get("overall_dimensions", {}):
+        raw["overall_dimensions"]["tolerance"] = raw.pop("tolerance")
+    elif "tolerance" in raw and "tolerance" in raw.get("overall_dimensions", {}):
+        raw.pop("tolerance", None)
 
     return validate_spec(raw)
 

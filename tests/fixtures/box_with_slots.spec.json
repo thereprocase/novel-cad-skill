@@ -1,0 +1,43 @@
+{
+  "part_name": "Slotted box",
+  "overall_dimensions": {
+    "width": 40.0,
+    "depth": 30.0,
+    "height": 20.0,
+    "tolerance": 0.3
+  },
+  "material": "PLA",
+  "min_wall_mm": 2.0,
+  "engine": "build123d",
+  "features": [
+    {
+      "type": "slot",
+      "name": "left slot",
+      "width": 5.0,
+      "probe_z": 10.0,
+      "tolerance": 0.5
+    },
+    {
+      "type": "slot",
+      "name": "right slot",
+      "width": 5.0,
+      "probe_z": 10.0,
+      "tolerance": 0.5
+    }
+  ],
+  "warn_wall_mm": 2.5,
+  "export_format": "3mf",
+  "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+  ],
+  "units": "millimeter",
+  "description": "",
+  "manifold_check": true,
+  "components": [],
+  "overhangs_ok": false,
+  "max_overhang_angle_deg": 45.0,
+  "max_bridge_span_mm": 20.0
+}

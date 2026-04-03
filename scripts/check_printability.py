@@ -63,6 +63,12 @@ FAIL = "FAIL"
 _results = []  # list of status strings, accumulated by _emit()
 
 
+def _reset_results():
+    """Clear accumulated results. Call before each validation run."""
+    global _results
+    _results = []
+
+
 def _emit(status: str, check_name: str, detail: str):
     line = f"[{status}] {check_name}: {detail}"
     print(line)
@@ -75,80 +81,11 @@ def _load_mesh(input_path: str):
     """
     Load STEP or STL and return a trimesh.Trimesh.
 
-    STEP is tessellated via OCC at 0.05mm tolerance for accurate normals.
-    Tries build123d first; falls back to CadQuery for the import step.
-    STL is loaded directly.
+    Uses the shared OCC tessellation path (0.05mm) for STEP files.
+    STL/3MF loaded directly via trimesh.
     """
-    import trimesh
-
-    ext = Path(input_path).suffix.lower()
-
-    if ext in (".step", ".stp"):
-        from OCP.BRepMesh import BRepMesh_IncrementalMesh
-        from OCP.TopExp import TopExp_Explorer
-        from OCP.TopAbs import TopAbs_FACE
-        from OCP.BRep import BRep_Tool
-        from OCP.TopLoc import TopLoc_Location
-        from OCP.TopoDS import TopoDS
-
-        # Try build123d import first; fall back to CadQuery
-        solid = None
-        try:
-            from build123d import import_step
-            shape = import_step(input_path)
-            solid = shape.wrapped
-        except (ImportError, Exception):
-            pass
-
-        if solid is None:
-            try:
-                import cadquery as cq
-                shape = cq.importers.importStep(input_path)
-                solid = shape.val().wrapped
-            except Exception as e:
-                raise ValueError(f"Could not load STEP with build123d or CadQuery: {e}")
-
-        BRepMesh_IncrementalMesh(solid, 0.05, False, 0.1)
-
-        verts_list, tris_list = [], []
-        offset = 0
-        exp = TopExp_Explorer(solid, TopAbs_FACE)
-        while exp.More():
-            face = TopoDS.Face_s(exp.Current())
-            loc = TopLoc_Location()
-            poly = BRep_Tool.Triangulation_s(face, loc)
-            if poly is not None:
-                trsf = loc.Transformation()
-                is_id = loc.IsIdentity()
-                nodes = []
-                for i in range(1, poly.NbNodes() + 1):
-                    p = poly.Node(i)
-                    if not is_id:
-                        p = p.Transformed(trsf)
-                    nodes.append([p.X(), p.Y(), p.Z()])
-                for i in range(1, poly.NbTriangles() + 1):
-                    t = poly.Triangle(i)
-                    i1, i2, i3 = t.Get()
-                    tris_list.append([i1 - 1 + offset, i2 - 1 + offset, i3 - 1 + offset])
-                verts_list.extend(nodes)
-                offset += len(nodes)
-            exp.Next()
-
-        if not verts_list:
-            raise ValueError(f"No geometry extracted from STEP: {input_path}")
-
-        verts = np.array(verts_list, dtype=np.float64)
-        faces = np.array(tris_list, dtype=np.int32)
-        return trimesh.Trimesh(vertices=verts, faces=faces, process=False)
-
-    else:
-        mesh = trimesh.load(input_path, force="mesh")
-        if isinstance(mesh, trimesh.Scene):
-            parts = [g for g in mesh.geometry.values() if isinstance(g, trimesh.Trimesh)]
-            if not parts:
-                raise ValueError(f"No mesh geometry found in {input_path}")
-            mesh = trimesh.util.concatenate(parts)
-        return mesh
+    from mesh_utils import load_mesh_auto
+    return load_mesh_auto(input_path)
 
 
 # -- Threshold loading --------------------------------------------------------
@@ -730,6 +667,38 @@ def _min_feature_at_z(mesh, z: float) -> float | None:
     return min_dim if min_dim < float("inf") else None
 
 
+# -- Library API --------------------------------------------------------------
+
+def check_printability(mesh, thresholds: dict = None) -> bool:
+    """Run all printability checks on a trimesh. Safe for repeated calls.
+
+    Args:
+        mesh: trimesh.Trimesh to check.
+        thresholds: dict with keys max_overhang_angle_deg, max_bridge_span_mm,
+                    min_wall_mm, warn_wall_mm, min_feature_mm, overhangs_ok.
+                    Defaults applied for any missing keys.
+
+    Returns True if no FAILs, False if any FAIL.
+    """
+    if thresholds is None:
+        thresholds = {}
+
+    _reset_results()
+    check_flat_bottom(mesh)
+    check_overhangs(mesh,
+                    max_angle_deg=thresholds.get("max_overhang_angle_deg", DEFAULT_OVERHANG_DEG),
+                    overhangs_ok=thresholds.get("overhangs_ok", False))
+    check_wall_thickness(mesh,
+                         min_wall_mm=thresholds.get("min_wall_mm", DEFAULT_MIN_WALL_MM),
+                         warn_wall_mm=thresholds.get("warn_wall_mm"))
+    check_bridge_spans(mesh,
+                       max_bridge_mm=thresholds.get("max_bridge_span_mm", DEFAULT_BRIDGE_SPAN_MM))
+    check_min_feature_size(mesh,
+                           min_feat_mm=thresholds.get("min_feature_mm", DEFAULT_MIN_FEATURE_MM))
+
+    return FAIL not in _results
+
+
 # -- Main ---------------------------------------------------------------------
 
 def main():
@@ -762,6 +731,7 @@ def main():
         print("Error: loaded mesh has no faces", file=sys.stderr)
         sys.exit(2)
 
+    _reset_results()
     check_flat_bottom(mesh)
     check_overhangs(mesh,
                     max_angle_deg=thresholds["max_overhang_angle_deg"],

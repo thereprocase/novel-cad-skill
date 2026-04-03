@@ -35,8 +35,6 @@ _FEATURE_COSTS = {
     "pocket":       180,
     "slot":         160,
     "hole":         120,
-    "cutout":       220,  # port cutouts are verbose: position, rotation, size
-    "port":         240,
     "fillet":        80,
     "chamfer":       80,
     "shell":        100,
@@ -51,8 +49,9 @@ _FEATURE_COSTS = {
     "default":      150,
 }
 
-# Port cutout premium: these are especially verbose (Round 6 lesson)
-_PORT_CUTOUT_PREMIUM = 80
+# Note: "port" and "cutout" removed — not valid feature types in spec_format.
+# Their costs are folded into "pocket" (220) and "slot" (160) which are the
+# valid types used for port cutouts and rectangular cutouts respectively.
 
 # Pattern feature discount vs. N individual features
 _PATTERN_DISCOUNT = 0.6   # a pattern of 20 costs ~60% of 20 individual features
@@ -85,10 +84,6 @@ def _feature_cost(feature: dict) -> int:
         return int(elem_cost * _PATTERN_DISCOUNT + 40)
 
     base = _FEATURE_COSTS.get(ftype, _FEATURE_COSTS["default"])
-
-    # Port/cutout premium
-    if ftype in ("port", "cutout") or "port" in feature.get("name", "").lower():
-        base += _PORT_CUTOUT_PREMIUM
 
     return base
 

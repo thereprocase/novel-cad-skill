@@ -38,68 +38,15 @@ def _load_spec(step_path: str, spec_path: str = None) -> dict:
 
 def _step_to_trimesh(step_path: str):
     """
-    Load a STEP file and return a trimesh.Trimesh via OCC tessellation.
+    Load a STEP file and return a trimesh.Trimesh via shared OCC tessellation.
 
-    Tries build123d first; falls back to CadQuery. Tessellation tolerance
-    is 0.05mm to match the rest of the pipeline.
+    Uses mesh_utils.load_mesh_from_step() at 0.05mm tolerance, consistent
+    with all other pipeline scripts.
     """
-    from OCP.BRepMesh import BRepMesh_IncrementalMesh
-    from OCP.TopExp import TopExp_Explorer
-    from OCP.TopAbs import TopAbs_FACE
-    from OCP.BRep import BRep_Tool
-    from OCP.TopLoc import TopLoc_Location
-    from OCP.TopoDS import TopoDS
-    import numpy as np
-    import trimesh
-
-    solid = None
-    try:
-        from build123d import import_step
-        shape = import_step(step_path)
-        solid = shape.wrapped
-    except (ImportError, Exception):
-        pass
-
-    if solid is None:
-        try:
-            import cadquery as cq
-            shape = cq.importers.importStep(step_path)
-            solid = shape.val().wrapped
-        except Exception as e:
-            raise ValueError(f"Could not load STEP with build123d or CadQuery: {e}")
-
-    BRepMesh_IncrementalMesh(solid, 0.05, False, 0.1)
-
-    verts_list, tris_list = [], []
-    offset = 0
-    exp = TopExp_Explorer(solid, TopAbs_FACE)
-    while exp.More():
-        face = TopoDS.Face_s(exp.Current())
-        loc = TopLoc_Location()
-        poly = BRep_Tool.Triangulation_s(face, loc)
-        if poly is not None:
-            trsf = loc.Transformation()
-            is_id = loc.IsIdentity()
-            nodes = []
-            for i in range(1, poly.NbNodes() + 1):
-                p = poly.Node(i)
-                if not is_id:
-                    p = p.Transformed(trsf)
-                nodes.append([p.X(), p.Y(), p.Z()])
-            for i in range(1, poly.NbTriangles() + 1):
-                t = poly.Triangle(i)
-                i1, i2, i3 = t.Get()
-                tris_list.append([i1 - 1 + offset, i2 - 1 + offset, i3 - 1 + offset])
-            verts_list.extend(nodes)
-            offset += len(nodes)
-        exp.Next()
-
-    if not verts_list:
-        raise ValueError(f"No geometry extracted from STEP: {step_path}")
-
-    verts = np.array(verts_list, dtype=np.float64)
-    faces = np.array(tris_list, dtype=np.int32)
-    return trimesh.Trimesh(vertices=verts, faces=faces, process=False)
+    _SKILL_DIR = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(_SKILL_DIR / "lib"))
+    from mesh_utils import load_mesh_from_step
+    return load_mesh_from_step(step_path)
 
 
 def _build_3mf_xml(mesh, part_name: str, material: str, color_rgba: list,

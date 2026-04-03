@@ -46,55 +46,12 @@ MM_PER_PIXEL = 0.05
 # -- Mesh loading -------------------------------------------------------------
 
 def _load_mesh(input_path):
-    """Load 3MF, STEP, or STL and return a trimesh.Trimesh."""
-    import trimesh
-    ext = Path(input_path).suffix.lower()
+    """Load 3MF, STEP, or STL and return a trimesh.Trimesh.
 
-    if ext == ".3mf":
-        scene = trimesh.load(input_path)
-        if isinstance(scene, trimesh.Scene):
-            parts = [g for g in scene.geometry.values()
-                     if isinstance(g, trimesh.Trimesh)]
-            if not parts:
-                raise ValueError(f"No mesh geometry in {input_path}")
-            return trimesh.util.concatenate(parts)
-        return scene
-
-    elif ext in (".step", ".stp"):
-        try:
-            from build123d import import_step
-            solid = import_step(input_path)
-            tess = solid.tessellate(tolerance=0.01)
-            verts = np.array([(v.X, v.Y, v.Z) for v in tess[0]])
-            faces = np.array(tess[1])
-            return trimesh.Trimesh(vertices=verts, faces=faces, process=False)
-        except ImportError:
-            import cadquery as cq
-            import tempfile
-            shape = cq.importers.importStep(input_path)
-            with tempfile.NamedTemporaryFile(suffix=".stl", delete=False) as tmp:
-                tmp_path = tmp.name
-            try:
-                cq.exporters.export(shape, tmp_path, exportType="STL",
-                                    tolerance=0.01, angularTolerance=0.1)
-                mesh = trimesh.load(tmp_path)
-                if isinstance(mesh, trimesh.Scene):
-                    mesh = trimesh.util.concatenate(
-                        [g for g in mesh.geometry.values()
-                         if isinstance(g, trimesh.Trimesh)])
-                return mesh
-            finally:
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
-    else:
-        mesh = trimesh.load(input_path, force="mesh")
-        if isinstance(mesh, trimesh.Scene):
-            parts = [g for g in mesh.geometry.values()
-                     if isinstance(g, trimesh.Trimesh)]
-            mesh = trimesh.util.concatenate(parts)
-        return mesh
+    Uses the shared OCC tessellation path (0.05mm) for STEP files.
+    """
+    from mesh_utils import load_mesh_auto
+    return load_mesh_auto(input_path)
 
 
 # -- Slicing ------------------------------------------------------------------
@@ -538,7 +495,9 @@ def _draw_dimension_h(ax, y, x1, x2, label, mm_per_px, x_off, y_off,
     """Draw a horizontal dimension line with arrows and label."""
     x1_mm = x1 * mm_per_px + x_off
     x2_mm = x2 * mm_per_px + x_off
-    y_mm = y * mm_per_px + y_off
+    # y_off is ymax (top of bitmap in mm). Bitmap rows increase downward,
+    # but plot Y increases upward. Subtract to flip.
+    y_mm = y_off - y * mm_per_px
 
     y_line = y_mm - offset_px * mm_per_px
 
@@ -562,8 +521,10 @@ def _draw_dimension_v(ax, x, y1, y2, label, mm_per_px, x_off, y_off,
                       offset_px=40, color=DIM_LINE_COLOR, text_color=DIM_TEXT_COLOR):
     """Draw a vertical dimension line with arrows and label."""
     x_mm = x * mm_per_px + x_off
-    y1_mm = y1 * mm_per_px + y_off
-    y2_mm = y2 * mm_per_px + y_off
+    # y_off is ymax (top of bitmap in mm). Bitmap rows increase downward,
+    # but plot Y increases upward. Subtract to flip.
+    y1_mm = y_off - y1 * mm_per_px
+    y2_mm = y_off - y2 * mm_per_px
 
     x_line = x_mm + offset_px * mm_per_px
 

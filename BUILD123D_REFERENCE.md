@@ -19,7 +19,7 @@ from build123d import *
 
 with BuildPart() as part:
     Box(width, depth, height)
-    Fillet(*part.edges().filter_by(Axis.Z), radius=r_ext)
+    fillet(part.edges().filter_by(Axis.Z), radius=r_ext)
     Shell(*part.faces().sort_by(Axis.Z).last, thickness=-wall)
 
 result = part.part
@@ -189,7 +189,7 @@ Shell(*part.faces().sort_by(Axis.Z).last, thickness=-wall)
 
 ### Fillet and Chamfer
 ```python
-Fillet(*part.edges().filter_by(Axis.Z), radius=3)
+fillet(part.edges().filter_by(Axis.Z), radius=3)
 Chamfer(*part.edges().sort_by(Axis.Z).first, length=0.5)
 # Note: unpack edge lists with * — these take individual edges, not a list
 ```
@@ -236,12 +236,12 @@ print(f"Bounds: X={bb.min.X:.1f}..{bb.max.X:.1f}, "
       f"Z={bb.min.Z:.1f}..{bb.max.Z:.1f}")
 ```
 
-### 2. Fillet/Chamfer take unpacked edges
+### 2. Fillet/Chamfer — lowercase in build123d 0.10.x
+In build123d 0.10.0, `fillet()` and `chamfer()` are **lowercase** functions. `Fillet`/`Chamfer` do not exist. API casing changed between build123d versions — always check your installed version.
 ```python
-# Wrong:
-Fillet(part.edges().filter_by(Axis.Z), radius=3)
-# Right:
-Fillet(*part.edges().filter_by(Axis.Z), radius=3)
+# build123d 0.10.x (installed):
+fillet(part.edges().filter_by(Axis.Z), radius=3)
+chamfer(part.edges().sort_by(Axis.Z).first, length=0.5)
 ```
 
 ### 3. Mode.SUBTRACT is immediate
@@ -336,7 +336,7 @@ write_spec(spec, "phase1_base.step")
 # ============================================================
 with BuildPart() as part:
     Box(width, depth, height)
-    Fillet(*part.edges().filter_by(Axis.Z), radius=r_ext)
+    fillet(part.edges().filter_by(Axis.Z), radius=r_ext)
     Shell(*part.faces().sort_by(Axis.Z).last, thickness=-wall)
 
 result = part.part

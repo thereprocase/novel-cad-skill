@@ -1,0 +1,78 @@
+{
+  "part_name": "Spec-only test",
+  "overall_dimensions": {
+    "width": 50.0,
+    "depth": 30.0,
+    "height": 25.0,
+    "tolerance": 0.3
+  },
+  "material": "PETG",
+  "min_wall_mm": 1.5,
+  "engine": "build123d",
+  "features": [
+    {
+      "type": "hole",
+      "name": "M3 mount",
+      "diameter": 3.3,
+      "position": [
+        10.0,
+        10.0
+      ],
+      "tolerance": 0.3
+    },
+    {
+      "type": "pocket",
+      "name": "battery bay",
+      "width": 15.0,
+      "depth": 50.0,
+      "tolerance": 0.3
+    },
+    {
+      "type": "pattern",
+      "name": "vent grid",
+      "element": {
+        "type": "slot",
+        "width": 2.0,
+        "length": 12.0
+      },
+      "arrangement": "linear",
+      "count": 8,
+      "pitch": 3.0,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "direction": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tolerance": 0.3
+    }
+  ],
+  "components": [
+    {
+      "name": "AA battery",
+      "length": 50.5,
+      "width": 14.5,
+      "height": 14.5,
+      "clearance_mm": 0.3,
+      "effective_clearance_mm": 0.4
+    }
+  ],
+  "warn_wall_mm": 1.88,
+  "export_format": "3mf",
+  "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+  ],
+  "units": "millimeter",
+  "description": "",
+  "manifold_check": true,
+  "overhangs_ok": false,
+  "max_overhang_angle_deg": 45.0,
+  "max_bridge_span_mm": 20.0
+}

@@ -25,52 +25,19 @@ from pathlib import Path
 
 import numpy as np
 
+_SKILL_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_SKILL_DIR / "lib"))
 
-def _load_mesh_from_step(step_path):
-    """Tessellate a STEP file to vertices + faces arrays."""
-    try:
-        from build123d import import_step
-        solid = import_step(step_path)
-        tess = solid.tessellate(tolerance=0.01)
-        verts = np.array([(v.X, v.Y, v.Z) for v in tess[0]], dtype=np.float64)
-        faces = np.array(tess[1], dtype=np.int32)
-        return verts, faces
-    except ImportError:
-        import cadquery as cq
-        import tempfile
-        import trimesh
-
-        shape = cq.importers.importStep(step_path)
-        with tempfile.NamedTemporaryFile(suffix=".stl", delete=False) as tmp:
-            tmp_path = tmp.name
-        try:
-            cq.exporters.export(shape, tmp_path, exportType="STL",
-                                tolerance=0.01, angularTolerance=0.1)
-            mesh = trimesh.load(tmp_path, force="mesh")
-            return np.array(mesh.vertices, dtype=np.float64), np.array(mesh.faces, dtype=np.int32)
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
+from mesh_utils import load_mesh_auto
 
 
 def _load_mesh_from_file(input_path):
-    """Load vertices + faces from STEP, STL, or 3MF."""
-    ext = Path(input_path).suffix.lower()
+    """Load vertices + faces from STEP, STL, or 3MF.
 
-    if ext in (".step", ".stp"):
-        return _load_mesh_from_step(input_path)
-
-    import trimesh
-    mesh = trimesh.load(input_path, force="mesh")
-    if isinstance(mesh, trimesh.Scene):
-        parts = [g for g in mesh.geometry.values()
-                 if isinstance(g, trimesh.Trimesh)]
-        if not parts:
-            raise ValueError(f"No mesh geometry found in {input_path}")
-        mesh = trimesh.util.concatenate(parts)
-
+    Uses the shared OCC tessellation path (0.05mm tolerance) for STEP files,
+    ensuring consistency with check_printability and export_3mf.
+    """
+    mesh = load_mesh_auto(input_path)
     return np.array(mesh.vertices, dtype=np.float64), np.array(mesh.faces, dtype=np.int32)
 
 
@@ -88,7 +55,7 @@ def check_manifold(verts, faces):
         )
         m = manifold3d.Manifold(mesh=mesh)
         status = m.status()
-        if status == manifold3d.Manifold.Error.NoError:
+        if status == manifold3d.Error.NoError:
             return True, (
                 f"Manifold OK: {len(verts)} vertices, {len(faces)} triangles, "
                 f"genus {m.genus()}"
