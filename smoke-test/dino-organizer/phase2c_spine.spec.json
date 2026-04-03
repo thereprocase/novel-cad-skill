@@ -1,0 +1,59 @@
+{
+  "part_name": "Dino Desk Organizer \u2014 Spine + Fins",
+  "overall_dimensions": {
+    "width": 113.0,
+    "depth": 82.0,
+    "height": 63.0,
+    "tolerance": 0.3
+  },
+  "material": "PLA",
+  "min_wall_mm": 1.5,
+  "warn_wall_mm": 2.0,
+  "engine": "build123d",
+  "export_format": "3mf",
+  "units": "millimeter",
+  "description": "Dino organizer with stegosaurus spine ridge and plate fins",
+  "features": [
+    {
+      "type": "pocket",
+      "name": "spine ridge body",
+      "width": 90.0,
+      "depth": 8.0,
+      "tolerance": 0.3
+    },
+    {
+      "type": "pattern",
+      "name": "stego plate fins",
+      "element": {
+        "type": "slot",
+        "width": 4.0,
+        "length": 15.0
+      },
+      "arrangement": "linear",
+      "count": 5,
+      "pitch": 15.0,
+      "position": [
+        -43.0,
+        30.0,
+        34.5
+      ],
+      "direction": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "tolerance": 0.3
+    }
+  ],
+  "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+  ],
+  "manifold_check": true,
+  "components": [],
+  "overhangs_ok": false,
+  "max_overhang_angle_deg": 45.0,
+  "max_bridge_span_mm": 20.0
+}

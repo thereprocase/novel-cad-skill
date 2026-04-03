@@ -1,0 +1,156 @@
+{
+  "part_name": "dino_organizer",
+  "phases": {
+    "phase_1": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:36:16.485063+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:36:16.485910+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:36:16.486622+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Z5.0_XY_lower.png",
+        "section_Z10.0_XY_upper.png",
+        "section_Y1.0_XZ_side_profile.png",
+        "section_X-1.5_YZ_front_profile.png"
+      ],
+      "started_at": "2026-04-03T00:32:13.041912+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:36:16.488500+00:00"
+    },
+    "phase_2a": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:39:16.627507+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:39:16.628274+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:39:16.628870+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Z27.0_XY_pen_hole_left.png",
+        "section_Z20.0_XY_lower.png",
+        "section_Y1.0_XZ_side_profile.png",
+        "section_X-1.5_YZ_front_profile.png"
+      ],
+      "started_at": "2026-04-03T00:36:16.489185+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:39:16.630518+00:00"
+    },
+    "phase_2b": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:41:57.629644+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:41:57.630364+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:41:57.631020+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Z21.0_XY_lower.png",
+        "section_Z42.0_XY_upper.png",
+        "section_Y1.0_XZ_side_profile.png",
+        "section_X-1.5_YZ_front_profile.png"
+      ],
+      "started_at": "2026-04-03T00:39:16.631035+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:42:31.068727+00:00"
+    },
+    "phase_2c": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:45:07.229568+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:45:07.230476+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:45:07.231165+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Y5.1_XZ_spine_ridge_body.png",
+        "section_Z21.0_XY_lower.png",
+        "section_Z42.0_XY_upper.png",
+        "section_Y1.0_XZ_side_profile.png"
+      ],
+      "started_at": "2026-04-03T00:41:57.633897+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:49:25.576459+00:00"
+    },
+    "phase_2d": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:52:41.764319+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:52:41.765236+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:52:41.766050+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Y5.1_XZ_chevron_tray.png",
+        "section_Z11.0_XY_lower.png",
+        "section_Z37.0_XY_upper.png",
+        "section_Y1.0_XZ_side_profile.png"
+      ],
+      "started_at": "2026-04-03T00:45:07.233722+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:52:41.768453+00:00"
+    },
+    "phase_3": {
+      "status": "in_progress",
+      "validations": {},
+      "cross_sections": [],
+      "started_at": "2026-04-03T00:52:41.769303+00:00"
+    }
+  }
+}

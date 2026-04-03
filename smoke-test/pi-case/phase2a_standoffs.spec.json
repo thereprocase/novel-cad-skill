@@ -1,0 +1,69 @@
+{
+  "part_name": "Raspberry Pi 4 Case \u2014 Base + Standoffs",
+  "overall_dimensions": {
+    "width": 92.6,
+    "depth": 63.5,
+    "height": 15.0,
+    "tolerance": 0.3
+  },
+  "material": "PLA",
+  "min_wall_mm": 2.0,
+  "warn_wall_mm": 2.5,
+  "engine": "build123d",
+  "export_format": "3mf",
+  "units": "millimeter",
+  "description": "Pi 4 case base with M2.5 mounting standoffs",
+  "features": [
+    {
+      "type": "hole",
+      "name": "M2.5 standoff+pilot NW",
+      "diameter": 2.2,
+      "position": [
+        -39.3,
+        -24.75
+      ],
+      "tolerance": 0.3
+    },
+    {
+      "type": "hole",
+      "name": "M2.5 standoff+pilot NE",
+      "diameter": 2.2,
+      "position": [
+        18.700000000000003,
+        -24.75
+      ],
+      "tolerance": 0.3
+    },
+    {
+      "type": "hole",
+      "name": "M2.5 standoff+pilot SW",
+      "diameter": 2.2,
+      "position": [
+        -39.3,
+        24.25
+      ],
+      "tolerance": 0.3
+    },
+    {
+      "type": "hole",
+      "name": "M2.5 standoff+pilot SE",
+      "diameter": 2.2,
+      "position": [
+        18.700000000000003,
+        24.25
+      ],
+      "tolerance": 0.3
+    }
+  ],
+  "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+  ],
+  "manifold_check": true,
+  "components": [],
+  "overhangs_ok": false,
+  "max_overhang_angle_deg": 45.0,
+  "max_bridge_span_mm": 20.0
+}

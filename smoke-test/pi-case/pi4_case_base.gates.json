@@ -1,0 +1,156 @@
+{
+  "part_name": "pi4_case_base",
+  "phases": {
+    "phase_1": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:13:38.159467+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:13:38.160039+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:13:38.160535+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Z-2.5_XY_lower.png",
+        "section_Z2.5_XY_upper.png",
+        "section_Y0.0_XZ_side_profile.png",
+        "section_X0.0_YZ_front_profile.png"
+      ],
+      "started_at": "2026-04-03T00:10:06.484308+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:13:59.864054+00:00"
+    },
+    "phase_2a": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:16:37.584616+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:16:37.585318+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:16:37.585915+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Z-0.8_XY_M2_5_standoff_pilot_NW.png",
+        "section_Z-0.8_XY_M2_5_standoff_pilot_NE.png",
+        "section_Z-0.8_XY_M2_5_standoff_pilot_SW.png",
+        "section_Z-0.8_XY_M2_5_standoff_pilot_SE.png"
+      ],
+      "started_at": "2026-04-03T00:13:38.162686+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:16:37.587889+00:00"
+    },
+    "phase_2b": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:19:11.670252+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:19:11.671758+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:19:11.672516+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Y3.2_XZ_USB-C_cutout.png",
+        "section_Z-2.5_XY_lower.png",
+        "section_Z2.5_XY_upper.png",
+        "section_Y0.0_XZ_side_profile.png"
+      ],
+      "started_at": "2026-04-03T00:16:37.588620+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:20:04.342765+00:00"
+    },
+    "phase_2c": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:22:25.176554+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:22:25.177415+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:22:25.178239+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Y3.2_XZ_USB-A_stack_cutout.png",
+        "section_X-12.2_YZ_side_vent_grid_first.png",
+        "section_Z-2.5_XY_lower.png",
+        "section_Z2.5_XY_upper.png"
+      ],
+      "started_at": "2026-04-03T00:19:11.675222+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:22:25.180974+00:00"
+    },
+    "phase_2d": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:24:52.538892+00:00",
+          "details": ""
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:24:52.539785+00:00",
+          "details": ""
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T00:24:52.540563+00:00",
+          "details": ""
+        }
+      },
+      "cross_sections": [
+        "section_Y3.2_XZ_GPIO_header_notch.png",
+        "section_Z-2.5_XY_lower.png",
+        "section_Z2.5_XY_upper.png",
+        "section_Y0.0_XZ_side_profile.png"
+      ],
+      "started_at": "2026-04-03T00:22:25.181648+00:00",
+      "approved_by": "DeskGuy",
+      "approved_at": "2026-04-03T00:24:52.543472+00:00"
+    },
+    "phase_3": {
+      "status": "in_progress",
+      "validations": {},
+      "cross_sections": [],
+      "started_at": "2026-04-03T00:24:52.544307+00:00"
+    }
+  }
+}

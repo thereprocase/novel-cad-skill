@@ -1,0 +1,28 @@
+{
+  "part_name": "Dino Desk Organizer \u2014 Final",
+  "overall_dimensions": {
+    "width": 113.6,
+    "depth": 82.0,
+    "height": 63.0,
+    "tolerance": 0.3
+  },
+  "material": "PLA",
+  "min_wall_mm": 1.5,
+  "warn_wall_mm": 2.0,
+  "engine": "build123d",
+  "export_format": "3mf",
+  "units": "millimeter",
+  "description": "Dinosaur-themed desk organizer \u2014 final with bottom chamfers",
+  "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+  ],
+  "manifold_check": true,
+  "components": [],
+  "features": [],
+  "overhangs_ok": false,
+  "max_overhang_angle_deg": 45.0,
+  "max_bridge_span_mm": 20.0
+}

@@ -1,0 +1,43 @@
+{
+  "part_name": "Dino Desk Organizer \u2014 Complete",
+  "overall_dimensions": {
+    "width": 113.6,
+    "depth": 82.0,
+    "height": 63.0,
+    "tolerance": 0.3
+  },
+  "material": "PLA",
+  "min_wall_mm": 1.5,
+  "warn_wall_mm": 2.0,
+  "engine": "build123d",
+  "export_format": "3mf",
+  "units": "millimeter",
+  "description": "Dino organizer with all features: pens, teeth, spine, tray, claw",
+  "features": [
+    {
+      "type": "pocket",
+      "name": "chevron tray",
+      "width": 50.0,
+      "depth": 3.0,
+      "tolerance": 0.3
+    },
+    {
+      "type": "pocket",
+      "name": "raptor claw assembly",
+      "width": 25.0,
+      "depth": 30.0,
+      "tolerance": 0.3
+    }
+  ],
+  "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+  ],
+  "manifold_check": true,
+  "components": [],
+  "overhangs_ok": false,
+  "max_overhang_angle_deg": 45.0,
+  "max_bridge_span_mm": 20.0
+}
