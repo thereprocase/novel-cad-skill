@@ -1,0 +1,98 @@
+{
+  "part_name": "pen_organizer",
+  "phases": {
+    "phase_1": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:22:49.954651+00:00",
+          "details": "4/4 checks passed"
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:22:49.955217+00:00",
+          "details": "flat bottom, minor overhang warn 0.4%"
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:22:49.995811+00:00",
+          "details": "32 verts, 60 tris, genus 0"
+        }
+      },
+      "cross_sections": [
+        "section_Z26.7_XY_lower.png",
+        "section_Z53.3_XY_upper.png",
+        "section_Y0.0_XZ_side_profile.png",
+        "section_X0.0_YZ_front_profile.png"
+      ],
+      "started_at": "2026-04-03T01:21:27.200747+00:00",
+      "approved_by": "Repro via trio",
+      "approved_at": "2026-04-03T01:24:05.764158+00:00"
+    },
+    "phase_2": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:26:58.403569+00:00",
+          "details": "7/7 checks passed"
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:26:58.404244+00:00",
+          "details": "flat bottom, 0.2% overhang warn, 7.4mm min wall"
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:26:58.404817+00:00",
+          "details": "2067 verts, 4130 tris, genus 0"
+        }
+      },
+      "cross_sections": [
+        "section_X0.0_YZ_pen_holes_first.png",
+        "section_Y5.0_XZ_sticky_note_pocket.png",
+        "section_Y-5.0_XZ_phone_slot.png",
+        "section_Z40.0_XY_phone_slot.png",
+        "section_Z26.7_XY_lower.png",
+        "section_Z53.3_XY_upper.png",
+        "section_Y0.0_XZ_side_profile.png"
+      ],
+      "started_at": "2026-04-03T01:24:54.570298+00:00",
+      "approved_by": "Repro via trio",
+      "approved_at": "2026-04-03T01:28:01.321387+00:00"
+    },
+    "phase_3": {
+      "status": "approved",
+      "validations": {
+        "validate_geometry": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:29:23.705527+00:00",
+          "details": "7/7 final"
+        },
+        "check_printability": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:29:23.706343+00:00",
+          "details": "flat bottom, 7.4mm min wall, 0.2% overhang"
+        },
+        "validate_manifold": {
+          "passed": true,
+          "timestamp": "2026-04-03T01:29:23.707022+00:00",
+          "details": "2067 verts, 4130 tris, genus 0"
+        }
+      },
+      "cross_sections": [
+        "section_X0.0_YZ_pen_holes_first.png",
+        "section_Y5.0_XZ_sticky_note_pocket.png",
+        "section_Y-5.0_XZ_phone_slot.png",
+        "section_Z40.0_XY_phone_slot.png",
+        "section_Z26.7_XY_lower.png",
+        "section_Z53.3_XY_upper.png",
+        "section_Y0.0_XZ_side_profile.png"
+      ],
+      "started_at": "2026-04-03T01:28:29.596505+00:00",
+      "approved_by": "Repro via trio",
+      "approved_at": "2026-04-03T01:29:55.353267+00:00"
+    }
+  }
+}

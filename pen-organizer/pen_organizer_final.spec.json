@@ -1,0 +1,63 @@
+{
+  "part_name": "Pen Organizer",
+  "overall_dimensions": {
+    "width": 200.0,
+    "depth": 100.0,
+    "height": 80.0,
+    "tolerance": 0.3
+  },
+  "material": "PLA",
+  "min_wall_mm": 2.0,
+  "warn_wall_mm": 2.5,
+  "engine": "build123d",
+  "export_format": "3mf",
+  "units": "millimeter",
+  "description": "Desktop pen organizer with pen slots, sticky note pocket, phone stand",
+  "features": [
+    {
+      "type": "pattern",
+      "name": "pen holes",
+      "element": {
+        "type": "hole",
+        "diameter": 12.0
+      },
+      "arrangement": "grid",
+      "count": 8,
+      "count_x": 4,
+      "count_y": 2,
+      "pitch_x": 22.0,
+      "pitch_y": 22.0,
+      "position": [
+        -30.0,
+        28.0,
+        0.0
+      ],
+      "tolerance": 0.3
+    },
+    {
+      "type": "pocket",
+      "name": "sticky note pocket",
+      "width": 78.0,
+      "depth": 78.0,
+      "tolerance": 0.3
+    },
+    {
+      "type": "slot",
+      "name": "phone slot",
+      "width": 10.0,
+      "probe_z": 40.0,
+      "tolerance": 0.3
+    }
+  ],
+  "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+  ],
+  "manifold_check": true,
+  "components": [],
+  "overhangs_ok": false,
+  "max_overhang_angle_deg": 45.0,
+  "max_bridge_span_mm": 20.0
+}
