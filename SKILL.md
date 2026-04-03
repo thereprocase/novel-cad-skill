@@ -95,7 +95,7 @@ If needed, handle text BEFORE mechanical features.
   from build123d import *
   base = import_step("phase1_base.step")
   with BuildPart() as part:
-      Add(base)
+      add(base)
       # Phase 2 features only
   ```
 - **UPDATE THE SPEC** to declare every new feature:
@@ -131,11 +131,11 @@ If needed, handle text BEFORE mechanical features.
 
 - **Use construction-time checks** inline:
   ```python
-  from bd_debug_helpers import verify_boolean
-  before_vol = part.part.volume
+  from bd_debug_helpers import snapshot, verify_result
+  before = snapshot(part)
   with Locations((x, y)):
       Hole(radius=r)
-  verify_boolean(before_vol, part.part.volume, "mounting hole")
+  verify_result(part, before, "mounting hole")
   ```
 
 - Export, validate (all 4 tools), render, show cross-sections to user.
@@ -410,7 +410,7 @@ from pathlib import Path
 
 # Construction-time checks
 sys.path.insert(0, str(Path.home() / ".claude/skills/novel-cad-skill/scripts"))
-from bd_debug_helpers import verify_boolean
+from bd_debug_helpers import snapshot, verify_result, verify_bounds
 
 # Spec capture + gate enforcement
 sys.path.insert(0, str(Path.home() / ".claude/skills/novel-cad-skill/lib"))
@@ -449,15 +449,15 @@ gate.begin_phase("phase_1")
 with BuildPart() as part:
     Box(width, depth, height)
     fillet(part.edges().filter_by(Axis.Z), radius=r_ext)
-    Shell(*part.faces().sort_by(Axis.Z).last, thickness=-wall)
+    offset(amount=-wall, openings=part.faces().sort_by(Axis.Z)[-1])
 
 result = part.part
 
 # Inline boolean verification — use after every subtraction
-# before_vol = part.part.volume
+# before = snapshot(part)
 # with Locations((x, y)):
 #     Hole(radius=r)
-# verify_boolean(before_vol, part.part.volume, "mounting hole")
+# verify_result(part, before, "mounting hole")
 
 # ============================================================
 # EXPORT — STEP primary, 3MF for slicer
@@ -480,16 +480,29 @@ print(f"Exported: {width}x{depth}x{height}mm")
 
 ---
 
+## Common Pitfalls
+
+### Boolean overlap rule
+Always overlap boolean operands by 0.5-1mm. Bodies that merely *touch* at a face create degenerate topology (genus != 0) that confuses slicers. When adding a feature that sits on a surface, extend it 0.5-1mm into the base body.
+
+### Plane orientation in build123d
+`Plane(z_dir=(0,1,0), x_dir=(1,0,0))` maps sketch Y into world **-Z** (downward). This is because the sketch Y axis is `cross(z_dir, x_dir)` = `(0, 0, -1)`. Use `z_dir=(0,-1,0)` for YZ-plane sketches where sketch Y should map upward in world Z.
+
+### Spec height across phases
+When importing a prior-phase STEP that contains features taller than the current phase's additions, the spec `height` must reflect the **tallest feature across all phases**, not just what you're adding now. The validator compares spec height to the actual bounding box.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Builder context boolean fails silently | Use `verify_boolean(before_vol, after_vol, name)` after every subtraction. |
+| Builder context boolean fails silently | Use `snapshot(part)` before, then `verify_result(part, before, name)` after every subtraction. |
 | Fillet fails on edge | Try smaller radius or chamfer instead. Some edge combinations confuse OCCT. |
 | Shell fails | Reduce fillet radii before shelling. Or: fillet exterior, then shell — shell propagates fillet inward. |
 | Two fillet types on same solid fail | Apply one fillet type, then add the second after a cut/union using `.filter_by()` to isolate target edges. |
 | Text offset after boolean operations | Use absolute positioning for text, not face-relative workplanes. |
-| `import_step()` returns wrong type | Wrap in `Add()` inside a `BuildPart()` context. |
+| `import_step()` returns wrong type | Wrap in `add()` inside a `BuildPart()` context. |
 | Manifold validation fails | Check for coincident faces after booleans. Add 0.01mm extra depth to through-cuts. |
 | Context exhaustion on complex part | Split Phase 2 into sub-phases. Import STEP between sub-phases. |
 | Spec file not found by validator | You forgot `write_spec(spec, "part.step")`. Add it before geometry generation. |

@@ -313,6 +313,46 @@ class GateEnforcer:
 
         print(f"[Gate] {phase} APPROVED by {approved_by}.")
 
+    @classmethod
+    def resume_from(cls, part_name: str, phase_name: str,
+                    step_dir: str = None) -> "GateEnforcer":
+        """
+        Reload persisted gate state and trust it up to and including phase_name.
+
+        Use this in a new phase script to avoid replaying all prior
+        validation+approval calls.  The named phase must exist in the
+        .gates.json file and have status "approved"; raises RuntimeError
+        otherwise.
+
+        Args:
+            part_name:  Part slug (same one used when the gate was created).
+            phase_name: The last phase that was approved in a prior script.
+                        The returned gate is ready to call begin_phase() on
+                        the *next* phase immediately.
+            step_dir:   Directory containing the .gates.json file.
+                        Defaults to the current working directory.
+
+        Example:
+            gate = GateEnforcer.resume_from("pi_case", "phase_2c")
+            gate.begin_phase("phase_2d")
+        """
+        gate = cls(part_name, step_dir=step_dir)
+        phase_data = gate._state["phases"].get(phase_name)
+        if phase_data is None:
+            raise RuntimeError(
+                f"[GateEnforcer] resume_from: phase '{phase_name}' not found "
+                f"in {gate._state_path}. "
+                "Check part_name, step_dir, and that the prior script ran to completion."
+            )
+        if phase_data.get("status") != "approved":
+            raise RuntimeError(
+                f"[GateEnforcer] resume_from: phase '{phase_name}' is not approved "
+                f"(status: {phase_data.get('status', 'unknown')}). "
+                "The prior phase script must complete its full approval cycle first."
+            )
+        print(f"[Gate] Resumed from {phase_name} (approved). Ready for next phase.")
+        return gate
+
     def get_state(self) -> dict:
         """Return the full gate state dict (for debugging or logging)."""
         return self._state.copy()

@@ -357,14 +357,35 @@ def _compute_cut_planes(spec, mesh):
             })
 
         elif feat_type == "pattern":
-            # Cut at first element and between elements 1-2
+            arrangement = feat.get("arrangement", "linear")
             region = feat.get("region", {})
             center = region.get("center", [xmid, ymid, zmid])
             pattern_axis = feat.get("pattern_axis", "x")
             pitch = feat.get("pitch", 0)
             count = feat.get("count", 0)
 
-            if pattern_axis == "x" and count > 0:
+            if arrangement == "radial":
+                # Radial/polar pattern: pitch is in degrees, not mm.
+                # Cut through the pattern center using XY, XZ, and YZ planes.
+                # Trying to offset by pitch*count would place the plane far
+                # outside the model (e.g. 45 deg * 3 = 135mm offset).
+                px, py, pz = feat.get("position", center)
+                cuts.append({
+                    'origin': [px, py, pz],
+                    'normal': [0, 0, 1],
+                    'label': f"Section at Z={pz:.1f}mm -- XY Plane -- {name} (radial center)",
+                    'filename': f"section_Z{pz:.1f}_XY_{_safe_name(name)}_radial.png",
+                    'expected': []
+                })
+                cuts.append({
+                    'origin': [px, py, pz],
+                    'normal': [0, 1, 0],
+                    'label': f"Section at Y={py:.1f}mm -- XZ Plane -- {name} (radial center)",
+                    'filename': f"section_Y{py:.1f}_XZ_{_safe_name(name)}_radial.png",
+                    'expected': []
+                })
+
+            elif pattern_axis == "x" and count > 0:
                 first_pos = center[0] - (count - 1) * pitch / 2.0
                 cuts.append({
                     'origin': [first_pos, ymid, zmid],

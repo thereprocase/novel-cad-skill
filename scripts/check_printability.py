@@ -318,6 +318,17 @@ def _wall_thickness_at_z(mesh, z: float) -> float | None:
     except Exception:
         return None
 
+    # trimesh sometimes returns a tuple instead of a Path2D object
+    if isinstance(path2d, tuple):
+        # Try to extract a Path2D from the tuple
+        import trimesh
+        for item in path2d:
+            if hasattr(item, 'entities'):
+                path2d = item
+                break
+        else:
+            return None  # no valid Path2D found
+
     return _min_thickness_from_path2d(path2d, resolution=0.2)
 
 
@@ -330,7 +341,7 @@ def _min_thickness_from_path2d(path2d, resolution: float = 0.2) -> float | None:
     """
     # Solid cross-section: distance transform on a solid polygon gives
     # misleadingly small values dominated by corner proximity. Skip it.
-    if len(path2d.entities) < 2:
+    if not hasattr(path2d, 'entities') or len(path2d.entities) < 2:
         return None
 
     try:
@@ -587,7 +598,16 @@ def _min_feature_at_z(mesh, z: float) -> float | None:
     except Exception:
         return None
 
-    if len(path2d.entities) < 2:
+    # trimesh sometimes returns a tuple instead of a Path2D object
+    if isinstance(path2d, tuple):
+        for item in path2d:
+            if hasattr(item, 'entities'):
+                path2d = item
+                break
+        else:
+            return None
+
+    if not hasattr(path2d, 'entities') or len(path2d.entities) < 2:
         return None
 
     bounds = path2d.bounds

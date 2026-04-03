@@ -65,11 +65,12 @@ _EXTRA_CLEARANCE = {
 
 _VALID_MATERIALS = set(_MIN_WALL_DEFAULTS.keys())
 
-_VALID_FEATURE_TYPES = {"slot", "hole", "pocket", "rail", "channel", "pattern"}
+_VALID_FEATURE_TYPES = {"slot", "hole", "pocket", "rail", "channel", "pattern",
+                        "boss", "standoff", "rib", "sweep", "loft", "revolve"}
 
 _VALID_ENGINES = {"build123d", "cadquery", "openscad"}
 
-_VALID_ARRANGEMENTS = {"linear", "grid", "radial"}
+_VALID_ARRANGEMENTS = {"linear", "grid", "radial", "polar"}
 
 _VALID_EXPORT_FORMATS = {"step", "stl", "3mf"}
 
@@ -395,6 +396,11 @@ def _validate_feature(feat: dict, idx: int) -> dict:
         if f["width"] <= 0:
             raise ValueError(f"spec.features[{idx}].width must be > 0")
         f["probe_z"] = float(f.get("probe_z", 0.0))
+        if "probe_axis" in f:
+            axis = f["probe_axis"].lower()
+            if axis not in ("x", "y", "z"):
+                raise ValueError(f"spec.features[{idx}].probe_axis must be 'x', 'y', or 'z'")
+            f["probe_axis"] = axis
 
     elif feat_type == "hole":
         if "diameter" not in f:
@@ -413,10 +419,27 @@ def _validate_feature(feat: dict, idx: int) -> dict:
     elif feat_type == "pattern":
         _validate_pattern_feature(f, idx)
 
-    elif feat_type in ("pocket", "rail", "channel"):
+    elif feat_type in ("pocket", "rail", "channel", "rib"):
         for dim in ("width", "depth"):
             if dim in f:
                 f[dim] = float(f[dim])
+
+    elif feat_type in ("boss", "standoff"):
+        if "diameter" not in f:
+            raise ValueError(f"spec.features[{idx}] ({feat_type} '{f['name']}') missing 'diameter'")
+        f["diameter"] = float(f["diameter"])
+        if f["diameter"] <= 0:
+            raise ValueError(f"spec.features[{idx}].diameter must be > 0")
+        if "position" in f:
+            pos = f["position"]
+            if not isinstance(pos, (list, tuple)) or len(pos) < 2:
+                raise ValueError(
+                    f"spec.features[{idx}].position must be [x, y] or [x, y, z]"
+                )
+            f["position"] = [float(v) for v in pos]
+
+    elif feat_type in ("sweep", "loft", "revolve"):
+        pass  # generic features — name validation is sufficient
 
     return f
 
@@ -450,6 +473,8 @@ def _validate_pattern_feature(f: dict, idx: int) -> None:
             f"spec.features[{idx}].arrangement '{arrangement}' not recognized. "
             f"Valid values: {sorted(_VALID_ARRANGEMENTS)}"
         )
+    if arrangement == "polar":
+        arrangement = "radial"
     f["arrangement"] = arrangement
 
     # count
@@ -461,11 +486,15 @@ def _validate_pattern_feature(f: dict, idx: int) -> None:
     if f["count"] < 1:
         raise ValueError(f"spec.features[{idx}].count must be >= 1")
 
-    # pitch (spacing between elements)
+    # pitch (spacing between elements; for radial, this is degrees)
     if "pitch" in f:
         f["pitch"] = float(f["pitch"])
-        if f["pitch"] <= 0:
-            raise ValueError(f"spec.features[{idx}].pitch must be > 0")
+        if arrangement == "radial":
+            if f["pitch"] < 0:
+                raise ValueError(f"spec.features[{idx}].pitch must be >= 0 for radial patterns")
+        else:
+            if f["pitch"] <= 0:
+                raise ValueError(f"spec.features[{idx}].pitch must be > 0")
 
     # For grid arrangement, also accept count_x/count_y
     if arrangement == "grid":
