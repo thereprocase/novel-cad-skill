@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 from build123d import (
+    Axis,
     BuildLine,
     BuildPart,
     BuildSketch,
@@ -27,6 +28,7 @@ from build123d import (
     RadiusArc,
     extrude,
     export_step,
+    fillet,
     make_face,
 )
 
@@ -41,6 +43,7 @@ FORM_FACTORS = {
         "convex_sweep": 120,
         "hole_dia": 4.0,
         "relief_r": 0.8,
+        "corner_r": 1.5,
         "body_width": 12.0,
         "min_handle": 30.0,
     },
@@ -51,6 +54,7 @@ FORM_FACTORS = {
         "jaw_angle": 160,  # degrees between convex/concave at tip
         "hole_dia": 5.0,
         "relief_r": 1.0,
+        "corner_r": 2.0,
         "body_extension_factor": 0.5,
         "min_body_extension": 20.0,
     },
@@ -61,6 +65,7 @@ FORM_FACTORS = {
         "jaw_angle": 140,  # tighter jaw = more material efficient at large radii
         "hole_dia": 6.0,
         "relief_r": 1.2,
+        "corner_r": 3.0,
         "body_extension_factor": 0.4,
         "min_body_extension": 25.0,
     },
@@ -142,9 +147,9 @@ def _build_dual_ended(r: float, f: dict):
                 if ccv_notch_hw < main_hw:
                     Line((ccv_notch_hw, body_bot), (main_hw, body_bot))
 
-                # Right side up with edge notch
+                # Right side up with edge notch (concave into body)
                 Line((main_hw, body_bot), (main_hw, notch_bot))
-                RadiusArc((main_hw, notch_bot), (main_hw, notch_top), -r)
+                RadiusArc((main_hw, notch_bot), (main_hw, notch_top), r)
 
                 # Right side to convex tangent
                 if cvx_tangent_x < main_hw:
@@ -160,6 +165,23 @@ def _build_dual_ended(r: float, f: dict):
         hole_y = body_bot + abs(body_bot) * 0.35
         with Locations([(0, hole_y)]):
             Hole(radius=f["hole_dia"] / 2.0, depth=f["thickness"])
+
+        # Fillet all Z-parallel corners for comfort.
+        # Skip the string hole edges (small radius, near hole center).
+        z_edges = part.part.edges().filter_by(Axis.Z)
+        hole_y = body_bot + abs(body_bot) * 0.35
+        corner_r = f["corner_r"]
+        body_corners = [e for e in z_edges
+                        if not (abs(e.center().Y - hole_y) < f["hole_dia"]
+                                and abs(e.center().X) < f["hole_dia"])]
+        if body_corners:
+            try:
+                fillet(body_corners, radius=corner_r)
+            except Exception:
+                try:
+                    fillet(body_corners, radius=corner_r * 0.5)
+                except Exception:
+                    pass
 
     return part.part
 
@@ -246,12 +268,12 @@ def _build_talon(r: float, f: dict):
                 # Top of body
                 Line((cvx_end_x, cvx_end_y), (body_left, cvx_end_y))
 
-                # Left spine with edge notch
+                # Left spine with edge notch (concave into body)
                 Line((body_left, cvx_end_y), (body_left, edge_notch_top))
                 RadiusArc(
                     (body_left, edge_notch_top),
                     (body_left, edge_notch_bot),
-                    -r,
+                    r,
                 )
                 Line((body_left, edge_notch_bot), (body_left, ccv_end_y))
 
@@ -267,6 +289,37 @@ def _build_talon(r: float, f: dict):
         # String hole
         with Locations([(hole_x, hole_y)]):
             Hole(radius=hole_dia / 2.0, depth=thickness)
+
+        # Fillet all Z-parallel edges (corner pillars through thickness)
+        # Body corners get full corner_r, tip gets a smaller comfort fillet
+        corner_r = f["corner_r"]
+        tip_r = min(corner_r * 0.5, r * 0.03)  # small relative to gauge radius
+        z_edges = part.part.edges().filter_by(Axis.Z)
+
+        # Separate tip from body corners
+        tip_edges = []
+        body_corners = []
+        for e in z_edges:
+            c = e.center()
+            if abs(c.X) < 1.0 and abs(c.Y) < 1.0:
+                tip_edges.append(e)
+            else:
+                body_corners.append(e)
+
+        if body_corners:
+            try:
+                fillet(body_corners, radius=corner_r)
+            except Exception:
+                try:
+                    fillet(body_corners, radius=corner_r * 0.5)
+                except Exception:
+                    pass
+
+        if tip_edges:
+            try:
+                fillet(tip_edges, radius=tip_r)
+            except Exception:
+                pass
 
     return part.part
 
