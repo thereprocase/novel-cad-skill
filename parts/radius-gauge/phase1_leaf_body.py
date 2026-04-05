@@ -1,9 +1,9 @@
 """Phase 1: Parametric radius gauge leaf body generator.
 
-Generates leaf bodies with 3 gauging profiles:
-  - End A (+Y): Convex arc (measures concave/inside features)
-  - End B (-Y): 80-deg concave corner arc (measures fillets in 90-deg corners)
-  - Side (+X): 40-deg concave edge notch (measures radii along an edge)
+Two leaf architectures:
+  - SMALL (dual-ended): Convex on one end, concave on the other, side notch
+  - MEDIUM/LARGE (talon): Convex and concave arcs share a tip, meet at a point.
+    40-deg edge notch on the spine. String hole in body meat.
 
 No text/labeling — that's Phase 2.
 
@@ -36,6 +36,7 @@ from build123d import (
 
 FORM_FACTORS = {
     "small": {
+        "architecture": "dual_ended",
         "thickness": 2.0,
         "convex_sweep": 120,
         "hole_dia": 4.0,
@@ -44,20 +45,24 @@ FORM_FACTORS = {
         "min_handle": 30.0,
     },
     "medium": {
+        "architecture": "talon",
         "thickness": 2.2,
         "convex_sweep": 90,
+        "jaw_angle": 160,  # degrees between convex/concave at tip
         "hole_dia": 5.0,
         "relief_r": 1.0,
-        "body_width": 16.0,
-        "min_handle": 40.0,
+        "body_extension_factor": 0.5,
+        "min_body_extension": 20.0,
     },
     "large": {
+        "architecture": "talon",
         "thickness": 2.5,
         "convex_sweep": 60,
+        "jaw_angle": 140,  # tighter jaw = more material efficient at large radii
         "hole_dia": 6.0,
         "relief_r": 1.2,
-        "body_width": 22.0,
-        "min_handle": 55.0,
+        "body_extension_factor": 0.4,
+        "min_body_extension": 25.0,
     },
 }
 
@@ -74,138 +79,212 @@ def classify_ring(radius_mm: float) -> str:
     return "large"
 
 
-def build_leaf(radius_mm: float, form_key: str = None):
-    """Build a single leaf body as a build123d Part.
+# ---------------------------------------------------------------------------
+# SMALL: Dual-ended architecture
+# ---------------------------------------------------------------------------
 
-    Profile traced clockwise from convex-right tangent point:
-      1. Convex arc across the top (left to right from viewer, but we trace R->L)
-      2. Left side down
-      3. Concave corner arc across the bottom
-      4. Right side up, with concave edge notch at midpoint
-      5. Close back to start
-    """
-    if form_key is None:
-        form_key = classify_ring(radius_mm)
-    f = FORM_FACTORS[form_key]
-
-    r = radius_mm
+def _build_dual_ended(r: float, f: dict):
+    """Build a small dual-ended leaf: convex top, concave bottom, side notch."""
     hw = f["body_width"] / 2.0
     cvx_half = f["convex_sweep"] / 2.0
     ccv_half = CONCAVE_CORNER_SWEEP / 2.0
     edge_half = CONCAVE_EDGE_SWEEP / 2.0
 
-    # --- Convex end geometry (top, +Y) ---
-    # Arc center at (0, body_top). Tangent points where arc meets body sides.
-    # For the convex arc: the tangent point x = r*sin(half_angle)
+    # Convex tangent spread
     cvx_tangent_x = r * math.sin(math.radians(cvx_half))
+    main_hw = max(hw, cvx_tangent_x)
 
-    # If the convex tangent spread is wider than body, body widens there.
-    # If narrower, we add horizontal transitions.
-    cvx_body_hw = max(hw, cvx_tangent_x)
-
-    # Body length: enough for handle between features
-    handle_len = max(f["min_handle"], 2.5 * r + 15.0)
+    # Handle length
+    handle_len = max(f["min_handle"], 2.0 * r + 15.0)
     body_top = handle_len / 2.0
     body_bot = -handle_len / 2.0
 
-    # Convex tangent points (relative to arc center at y=body_top)
-    cvx_r = (cvx_tangent_x, body_top + r * math.cos(math.radians(cvx_half)))
-    cvx_l = (-cvx_tangent_x, cvx_r[1])
+    # Convex tangent points
+    cvx_r_x = r * math.sin(math.radians(cvx_half))
+    cvx_r_y = body_top + r * math.cos(math.radians(cvx_half))
+    cvx_l_x = -cvx_r_x
+    cvx_l_y = cvx_r_y
 
-    # --- Concave corner geometry (bottom, -Y) ---
-    # Notch opening half-width
+    # Concave notch geometry
     ccv_notch_hw = r * math.sin(math.radians(ccv_half))
-
-    # If notch wider than body, clamp sweep to fit body width
     if ccv_notch_hw > hw:
         effective_ccv_half = math.degrees(math.asin(hw / r))
         ccv_notch_hw = hw
     else:
         effective_ccv_half = ccv_half
 
-    ccv_depth = r * (1.0 - math.cos(math.radians(effective_ccv_half)))
-
-    # Concave arc endpoints: notch opens downward from body_bot
-    ccv_l = (-ccv_notch_hw, body_bot)
-    ccv_r = (ccv_notch_hw, body_bot)
-    # Arc bottom point at (0, body_bot - ccv_depth)
-
-    # --- Side notch geometry (right side, +X) ---
+    # Side notch geometry
     edge_notch_hw = r * math.sin(math.radians(edge_half))
-
-    # If notch chord exceeds available side length, scale down
-    available_side = handle_len * 0.4  # use 40% of handle for notch
+    available_side = handle_len * 0.4
     if 2 * edge_notch_hw > available_side:
         edge_notch_hw = available_side / 2.0
-        edge_half = math.degrees(math.asin(edge_notch_hw / r))
 
-    edge_notch_depth = r * (1.0 - math.cos(math.radians(edge_half)))
-    notch_center_y = 0.0  # mid-body
-    notch_top = notch_center_y + edge_notch_hw
-    notch_bot = notch_center_y - edge_notch_hw
+    notch_top = edge_notch_hw
+    notch_bot = -edge_notch_hw
 
-    # Use the wider of convex spread or body width for the main body
-    main_hw = cvx_body_hw
-
-    # --- Build the closed profile ---
     with BuildPart() as part:
         with BuildSketch() as sk:
             with BuildLine() as ln:
-                # 1. CONVEX ARC: right tangent -> left tangent (counterclockwise)
-                RadiusArc(cvx_r, cvx_l, r)
+                # Convex arc: right tangent -> left tangent
+                RadiusArc((cvx_r_x, cvx_r_y), (cvx_l_x, cvx_l_y), r)
 
-                # 2. LEFT SIDE: transition from convex tangent down to body_bot
+                # Left side down
                 if cvx_tangent_x < main_hw:
-                    # Horizontal transition from convex tangent to body edge
-                    Line(cvx_l, (-main_hw, cvx_l[1]))
-                    Line((-main_hw, cvx_l[1]), (-main_hw, body_bot))
+                    Line((cvx_l_x, cvx_l_y), (-main_hw, cvx_l_y))
+                    Line((-main_hw, cvx_l_y), (-main_hw, body_bot))
                 else:
-                    Line(cvx_l, (-main_hw, body_bot))
+                    Line((cvx_l_x, cvx_l_y), (-main_hw, body_bot))
 
-                # 3. CONCAVE CORNER ARC at bottom
+                # Concave corner arc at bottom
                 if ccv_notch_hw < main_hw:
-                    # Shelf from body edge to notch edge
-                    Line((-main_hw, body_bot), ccv_l)
-
-                # Concave arc: left to right, curving downward (negative radius)
-                RadiusArc(ccv_l, ccv_r, -r)
-
+                    Line((-main_hw, body_bot), (-ccv_notch_hw, body_bot))
+                RadiusArc((-ccv_notch_hw, body_bot), (ccv_notch_hw, body_bot), -r)
                 if ccv_notch_hw < main_hw:
-                    # Shelf from notch edge back to body edge
-                    Line(ccv_r, (main_hw, body_bot))
+                    Line((ccv_notch_hw, body_bot), (main_hw, body_bot))
 
-                # 4. RIGHT SIDE with edge notch
-                # Bottom of right side up to notch
+                # Right side up with edge notch
                 Line((main_hw, body_bot), (main_hw, notch_bot))
+                RadiusArc((main_hw, notch_bot), (main_hw, notch_top), -r)
 
-                # Edge notch: concave arc curving inward (negative radius)
-                RadiusArc(
-                    (main_hw, notch_bot),
-                    (main_hw, notch_top),
-                    -r,
-                )
-
-                # Top of right side up to convex tangent
+                # Right side to convex tangent
                 if cvx_tangent_x < main_hw:
-                    Line((main_hw, notch_top), (main_hw, cvx_r[1]))
-                    Line((main_hw, cvx_r[1]), cvx_r)
+                    Line((main_hw, notch_top), (main_hw, cvx_r_y))
+                    Line((main_hw, cvx_r_y), (cvx_r_x, cvx_r_y))
                 else:
-                    Line((main_hw, notch_top), cvx_r)
+                    Line((main_hw, notch_top), (cvx_r_x, cvx_r_y))
 
             make_face()
-
-        # Extrude to leaf thickness
         extrude(amount=f["thickness"])
 
-        # --- STRING HOLE ---
-        # Offset toward concave end, 35% up from bottom
+        # String hole — offset toward concave end
         hole_y = body_bot + abs(body_bot) * 0.35
-        hole_r = f["hole_dia"] / 2.0
-
         with Locations([(0, hole_y)]):
-            Hole(radius=hole_r, depth=f["thickness"])
+            Hole(radius=f["hole_dia"] / 2.0, depth=f["thickness"])
 
     return part.part
+
+
+# ---------------------------------------------------------------------------
+# MEDIUM/LARGE: Talon architecture
+# ---------------------------------------------------------------------------
+
+def _build_talon(r: float, f: dict):
+    """Build a talon leaf: convex and concave arcs share a tip.
+
+    The jaw_angle controls how open the talon is at the tip:
+      - 180 = jaws straight across (widest body)
+      - 140 = tighter pinch (more material efficient for large radii)
+
+    Layout (tip pointing right, +X):
+      - Tip at origin (0, 0)
+      - Convex arc center above-left of tip, at distance r
+      - Concave arc center below-left of tip, at distance r
+      - Body extends left from arc endpoints
+      - 40-deg edge notch on the back (left) spine
+      - String hole in body meat
+    """
+    cvx_sweep = f["convex_sweep"]
+    ccv_sweep = CONCAVE_CORNER_SWEEP
+    edge_sweep = CONCAVE_EDGE_SWEEP
+    jaw_angle = f["jaw_angle"]
+    thickness = f["thickness"]
+    hole_dia = f["hole_dia"]
+    half_jaw = jaw_angle / 2.0
+
+    # --- Arc centers ---
+    # The convex arc center is above the tip, rotated so the jaw opening
+    # has the specified angle. At jaw_angle=180, centers are at (0, +-r).
+    # As jaw_angle decreases, centers rotate toward -X (behind the tip).
+    cvx_cx = -r * math.cos(math.radians(half_jaw))
+    cvx_cy = r * math.sin(math.radians(half_jaw))
+
+    ccv_cx = cvx_cx
+    ccv_cy = -cvx_cy
+
+    # --- Convex arc endpoints ---
+    # Tip is at angle (360 - half_jaw) from convex center (pointing toward tip).
+    # Sweep CCW by cvx_sweep degrees.
+    tip_angle_cvx = 360 - half_jaw
+    cvx_end_angle = tip_angle_cvx - cvx_sweep
+    cvx_end_x = cvx_cx + r * math.cos(math.radians(cvx_end_angle))
+    cvx_end_y = cvx_cy + r * math.sin(math.radians(cvx_end_angle))
+
+    # --- Concave arc endpoints ---
+    # Tip is at angle half_jaw from concave center.
+    # Sweep CW by ccv_sweep degrees.
+    tip_angle_ccv = half_jaw
+    ccv_end_angle = tip_angle_ccv + ccv_sweep
+    ccv_end_x = ccv_cx + r * math.cos(math.radians(ccv_end_angle))
+    ccv_end_y = ccv_cy + r * math.sin(math.radians(ccv_end_angle))
+
+    # --- Body extension ---
+    body_ext = max(f["min_body_extension"], r * f["body_extension_factor"])
+    body_left = min(cvx_end_x, ccv_end_x) - body_ext
+
+    # --- 40-deg edge notch on the back spine (left side) ---
+    edge_half = edge_sweep / 2.0
+    edge_notch_hw = r * math.sin(math.radians(edge_half))
+    spine_length = cvx_end_y - ccv_end_y
+    if spine_length < 4 * edge_notch_hw:
+        # Spine too short for notch — scale down
+        edge_notch_hw = spine_length * 0.2
+
+    spine_mid_y = (cvx_end_y + ccv_end_y) / 2.0
+    edge_notch_top = spine_mid_y + edge_notch_hw
+    edge_notch_bot = spine_mid_y - edge_notch_hw
+
+    # --- String hole ---
+    hole_x = body_left + body_ext * 0.45
+    hole_y = spine_mid_y
+
+    with BuildPart() as part:
+        with BuildSketch() as sk:
+            with BuildLine() as ln:
+                # CONVEX ARC: tip -> cvx_end
+                RadiusArc((0, 0), (cvx_end_x, cvx_end_y), r)
+
+                # Top of body
+                Line((cvx_end_x, cvx_end_y), (body_left, cvx_end_y))
+
+                # Left spine with edge notch
+                Line((body_left, cvx_end_y), (body_left, edge_notch_top))
+                RadiusArc(
+                    (body_left, edge_notch_top),
+                    (body_left, edge_notch_bot),
+                    -r,
+                )
+                Line((body_left, edge_notch_bot), (body_left, ccv_end_y))
+
+                # Bottom of body
+                Line((body_left, ccv_end_y), (ccv_end_x, ccv_end_y))
+
+                # CONCAVE ARC: ccv_end -> tip
+                RadiusArc((ccv_end_x, ccv_end_y), (0, 0), -r)
+
+            make_face()
+        extrude(amount=thickness)
+
+        # String hole
+        with Locations([(hole_x, hole_y)]):
+            Hole(radius=hole_dia / 2.0, depth=thickness)
+
+    return part.part
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def build_leaf(radius_mm: float, form_key: str = None):
+    """Build a single leaf body."""
+    if form_key is None:
+        form_key = classify_ring(radius_mm)
+    f = FORM_FACTORS[form_key]
+
+    if f["architecture"] == "dual_ended":
+        return _build_dual_ended(radius_mm, f)
+    else:
+        return _build_talon(radius_mm, f)
 
 
 def build_representative_leaves():
@@ -227,6 +306,7 @@ def build_representative_leaves():
         export_step(leaf, str(path))
 
         bb = leaf.bounding_box()
+        print(f"  Architecture: {FORM_FACTORS[key]['architecture']}")
         print(f"  Volume:  {leaf.volume:.2f} mm^3")
         print(f"  BBox:    {bb.size.X:.2f} x {bb.size.Y:.2f} x {bb.size.Z:.2f} mm")
         print(f"  Exported: {path}")
@@ -248,6 +328,7 @@ def build_single_leaf(radius_mm: float):
     export_step(leaf, str(path))
 
     bb = leaf.bounding_box()
+    print(f"  Architecture: {FORM_FACTORS[key]['architecture']}")
     print(f"  Volume:  {leaf.volume:.2f} mm^3")
     print(f"  BBox:    {bb.size.X:.2f} x {bb.size.Y:.2f} x {bb.size.Z:.2f} mm")
     print(f"  Exported: {path}")

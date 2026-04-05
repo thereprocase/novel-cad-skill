@@ -51,13 +51,16 @@ Logarithmic steps based on feelable difference (Weber's law). Finer increments a
 - **End B — Concave Corner (80 degrees):** Measures convex fillets in 90-degree corners. 5-degree wall clearance per side so gauge arms clear workpiece walls.
 - **Side — Concave Edge (40 degrees):** Shallow-sweep concave notch for measuring convex radii along an edge where full concave can't straddle. Placed as side notch on leaf body.
 
-## Leaf Form Factor by Ring
+## Leaf Architecture by Ring
 
-| Ring | Form | Thickness | Convex Sweep | String Hole | Relief Fillet |
-|------|------|-----------|-------------|-------------|---------------|
-| Small | Dogbone | 2.0mm | 120 deg | 4mm | 0.8mm |
-| Medium | Paddle | 2.2mm | 90 deg | 5mm | 1.0mm |
-| Large | Card | 2.5mm | 60 deg | 6mm | 1.2mm |
+| Ring | Architecture | Thickness | Convex Sweep | Jaw Angle | String Hole | Relief Fillet |
+|------|-------------|-----------|-------------|-----------|-------------|---------------|
+| Small | Dual-ended | 2.0mm | 120 deg | N/A | 4mm | 0.8mm |
+| Medium | Talon | 2.2mm | 90 deg | 160 deg | 5mm | 1.0mm |
+| Large | Talon | 2.5mm | 60 deg | 140 deg | 6mm | 1.2mm |
+
+**Small (dual-ended):** Convex on one end, concave on the other, 40-deg edge notch on side.
+**Medium/Large (talon):** Convex and concave arcs share a tip, meeting at a point like a claw. Tighter jaw angle at large sizes for material efficiency. 40-deg edge notch on the back spine. String hole in body meat between the arcs.
 
 Concave corner sweep: 80 degrees all sizes. Concave edge sweep: 40 degrees all sizes.
 
