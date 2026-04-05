@@ -1,0 +1,202 @@
+{
+  "name": "Radius Gauge Set",
+  "description": "Dual-system (SAE + metric) 3D-printable radius gauge set with convex, concave corner (80 deg), and concave edge (40 deg) profiles on each leaf. Six rings total.",
+  "phase0_requirements": "phase0_notes.md",
+  "research": ["research/industry_standards.md", "research/existing_3d_designs.md"],
+  "units": "mm",
+  "engine": "build123d",
+  "material": "PLA",
+  "min_wall_mm": 1.2,
+  "warn_wall_mm": 1.5,
+
+  "print_settings": {
+    "printer": "Bambu P1S",
+    "nozzle_mm": 0.4,
+    "layer_height_mm": 0.12,
+    "perimeters": 4,
+    "infill_pct": 100,
+    "orientation": "flat on bed",
+    "note": "0.3mm nozzle improves small-ring edge accuracy"
+  },
+
+  "systems": {
+    "sae": {
+      "color": "blue",
+      "text_color": "white",
+      "label_format": "fraction",
+      "unit_display": "inches",
+      "rings": {
+        "small": {
+          "description": "1/8 in to 1/2 in by 1/32 in",
+          "step_logic": "1/32 in steps, 8-17% relative",
+          "sizes_inches": [
+            "1/8", "5/32", "3/16", "7/32",
+            "1/4", "9/32", "5/16", "11/32",
+            "3/8", "13/32", "7/16", "15/32", "1/2"
+          ],
+          "leaf_count": 13,
+          "form_factor": "dogbone",
+          "leaf_thickness_mm": 2.0,
+          "convex_sweep_deg": 120,
+          "concave_corner_sweep_deg": 80,
+          "concave_edge_sweep_deg": 40,
+          "string_hole_dia_mm": 4.0,
+          "relief_fillet_mm": 0.8
+        },
+        "medium": {
+          "description": "9/16 in to 2-1/8 in. 1/16 in steps to 1-1/4 in, 1/8 in steps to 2-1/8 in",
+          "step_logic": "1/16 in steps hold to 1-1/4 in (6% threshold above 1.5 in), then 1/8 in steps",
+          "sizes_inches": [
+            "9/16", "5/8", "11/16", "3/4",
+            "13/16", "7/8", "15/16", "1",
+            "1-1/16", "1-1/8", "1-3/16", "1-1/4",
+            "1-3/8", "1-1/2", "1-5/8", "1-3/4",
+            "1-7/8", "2", "2-1/8"
+          ],
+          "leaf_count": 19,
+          "form_factor": "paddle",
+          "leaf_thickness_mm": 2.2,
+          "convex_sweep_deg": 90,
+          "concave_corner_sweep_deg": 80,
+          "concave_edge_sweep_deg": 40,
+          "string_hole_dia_mm": 5.0,
+          "relief_fillet_mm": 1.0
+        },
+        "large": {
+          "description": "2-1/4 in to 6 in. 1/4 in steps to 4-1/4 in, 1/2 in steps to 6 in",
+          "step_logic": "1/4 in steps hold to 4-1/4 in (6% threshold), then 1/2 in steps",
+          "sizes_inches": [
+            "2-1/4", "2-1/2", "2-3/4", "3",
+            "3-1/4", "3-1/2", "3-3/4", "4", "4-1/4",
+            "4-1/2", "5", "5-1/2", "6"
+          ],
+          "leaf_count": 13,
+          "form_factor": "card",
+          "leaf_thickness_mm": 2.5,
+          "convex_sweep_deg": 60,
+          "concave_corner_sweep_deg": 80,
+          "concave_edge_sweep_deg": 40,
+          "string_hole_dia_mm": 6.0,
+          "relief_fillet_mm": 1.2
+        }
+      }
+    },
+    "metric": {
+      "color": "red",
+      "text_color": "white",
+      "label_format": "decimal_mm",
+      "unit_display": "mm",
+      "rings": {
+        "small": {
+          "description": "3 mm to 13 mm. 0.5 mm steps to 6 mm, 1 mm steps to 13 mm",
+          "step_logic": "0.5 mm is 8-17% relative to 3-6 mm; 1 mm is 7.7-14% relative to 7-13 mm",
+          "sizes_mm": [
+            3, 3.5, 4, 4.5, 5, 5.5, 6,
+            7, 8, 9, 10, 11, 12, 13
+          ],
+          "leaf_count": 14,
+          "form_factor": "dogbone",
+          "leaf_thickness_mm": 2.0,
+          "convex_sweep_deg": 120,
+          "concave_corner_sweep_deg": 80,
+          "concave_edge_sweep_deg": 40,
+          "string_hole_dia_mm": 4.0,
+          "relief_fillet_mm": 0.8
+        },
+        "medium": {
+          "description": "14 mm to 50 mm. 2 mm steps to 18 mm with 15 mm added, designer 5s from 20 mm",
+          "step_logic": "2 mm steps below 20, 15 mm added as common design callout, 5 mm designer steps from 20+",
+          "sizes_mm": [
+            14, 15, 16, 18,
+            20, 25, 30, 35, 40, 45, 50
+          ],
+          "leaf_count": 11,
+          "form_factor": "paddle",
+          "leaf_thickness_mm": 2.2,
+          "convex_sweep_deg": 90,
+          "concave_corner_sweep_deg": 80,
+          "concave_edge_sweep_deg": 40,
+          "string_hole_dia_mm": 5.0,
+          "relief_fillet_mm": 1.0
+        },
+        "large": {
+          "description": "60 mm to 150 mm. Designer favorites: 60, 75, 80, 90, 100, 120, 125, 150",
+          "step_logic": "Designer-standard radii. 75 and 125 are industrial standards, 120 is common in circular geometry",
+          "sizes_mm": [
+            60, 75, 80, 90, 100,
+            120, 125, 150
+          ],
+          "leaf_count": 8,
+          "form_factor": "card",
+          "leaf_thickness_mm": 2.5,
+          "convex_sweep_deg": 60,
+          "concave_corner_sweep_deg": 80,
+          "concave_edge_sweep_deg": 40,
+          "string_hole_dia_mm": 6.0,
+          "relief_fillet_mm": 1.2
+        }
+      }
+    }
+  },
+
+  "leaf_profiles": {
+    "convex": {
+      "description": "Convex arc on one end of leaf. Measures concave (inside) features on workpiece.",
+      "position": "end_a",
+      "arc_tangent_blend": true,
+      "note": "Arc blends tangentially into leaf body sides"
+    },
+    "concave_corner": {
+      "description": "80 deg concave arc on opposite end. Measures convex fillets in 90 deg corners. 5 deg wall clearance per side.",
+      "position": "end_b",
+      "sweep_deg": 80,
+      "note": "Under 90 deg so gauge arms clear workpiece walls at inside corners"
+    },
+    "concave_edge": {
+      "description": "40 deg shallow concave notch. Measures convex radii along an edge where full concave cant straddle.",
+      "position": "side_notch",
+      "sweep_deg": 40,
+      "note": "Placed as side notch on leaf body between the two end profiles"
+    }
+  },
+
+  "multi_body": {
+    "strategy": "Named bodies for multi-color MMU printing. Flat top surfaces for clean layer-based color change.",
+    "bodies_per_leaf": {
+      "leaf": "Main leaf body. Blue (SAE) or red (metric).",
+      "text_top": "All debossed text inlays on top face. White. Flush with top surface.",
+      "text_bottom": "All debossed text inlays on bottom face. White. Flush with top surface when flipped."
+    },
+    "deboss_depth_mm": 0.5,
+    "text_inlay_flush": true
+  },
+
+  "labeling": {
+    "font": "sans-serif bold",
+    "sae_primary": "fraction (stacked where area allows, inline where tight)",
+    "sae_secondary": "decimal inches (when space permits)",
+    "metric_primary": "decimal mm with unit suffix",
+    "double_sided": "fraction on one face, decimal on other when both wont fit one side",
+    "min_text_height_mm": 4.0,
+    "preferred_text_height_mm": 6.0,
+    "text_sizing": "driven by available area on leaf body — must fit, never overflow",
+    "content": "size only — no branding, logo, or version"
+  },
+
+  "string_hole": {
+    "position": "offset toward concave_corner end",
+    "note": "Leaves hang with convex (larger) profile up when on string. Hole diameter varies by ring size to balance strength vs usability."
+  },
+
+  "dimensional_tolerance": {
+    "model_tolerance_mm": 0.01,
+    "note": "Models are dead-nuts nominal. No shrinkage compensation. Printer calibration is the printers problem. Same-printer closed-loop cancels systematic error."
+  },
+
+  "totals": {
+    "sae_leaves": 45,
+    "metric_leaves": 33,
+    "total_leaves": 78,
+    "total_rings": 6
+  }
+}
