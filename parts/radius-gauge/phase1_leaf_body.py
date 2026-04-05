@@ -40,11 +40,10 @@ FORM_FACTORS = {
     "small": {
         "architecture": "dual_ended",
         "thickness": 2.0,
-        "convex_sweep": 120,
+        "convex_sweep": 120,  # body width derived: 2*r*sin(sweep/2)
         "hole_dia": 4.0,
         "relief_r": 0.8,
         "corner_r": 1.5,
-        "body_width": 12.0,
         "min_handle": 30.0,
     },
     "medium": {
@@ -89,33 +88,35 @@ def classify_ring(radius_mm: float) -> str:
 # ---------------------------------------------------------------------------
 
 def _build_dual_ended(r: float, f: dict):
-    """Build a small dual-ended leaf: convex top, concave bottom, side notch."""
-    hw = f["body_width"] / 2.0
+    """Build a small dual-ended leaf.
+
+    Body width is derived from the convex sweep angle and gauge radius:
+      body_hw = r * sin(sweep/2)
+    The arc sweeps exactly the specified angle where it meets the body sides.
+    """
     cvx_half = f["convex_sweep"] / 2.0
     ccv_half = CONCAVE_CORNER_SWEEP / 2.0
     edge_half = CONCAVE_EDGE_SWEEP / 2.0
 
-    # Body width matches convex arc tangent spread — no shelf at transition
-    cvx_tangent_x = r * math.sin(math.radians(cvx_half))
-    main_hw = cvx_tangent_x
+    # Body width derived from sweep angle
+    hw = r * math.sin(math.radians(cvx_half))
 
-    # Handle length
     handle_len = max(f["min_handle"], 2.0 * r + 15.0)
     body_top = handle_len / 2.0
     body_bot = -handle_len / 2.0
 
-    # Convex tangent points
-    cvx_r_x = r * math.sin(math.radians(cvx_half))
-    cvx_r_y = body_top + r * math.cos(math.radians(cvx_half))
-    cvx_l_x = -cvx_r_x
-    cvx_l_y = cvx_r_y
+    # Convex arc: circle at (0, body_top), body sides at x=±hw
+    # Intersection y = body_top + r*cos(sweep/2)
+    cvx_int_y = body_top + r * math.cos(math.radians(cvx_half))
+    cvx_r = (hw, cvx_int_y)
+    cvx_l = (-hw, cvx_int_y)
 
-    # Concave notch geometry — clamp to body width if needed
+    # --- Concave notch at bottom ---
     ccv_notch_hw = r * math.sin(math.radians(ccv_half))
-    if ccv_notch_hw > main_hw:
-        ccv_notch_hw = main_hw
+    if ccv_notch_hw > hw:
+        ccv_notch_hw = hw
 
-    # Side notch geometry
+    # --- Edge notch on right side ---
     edge_notch_hw = r * math.sin(math.radians(edge_half))
     available_side = handle_len * 0.4
     if 2 * edge_notch_hw > available_side:
@@ -127,47 +128,37 @@ def _build_dual_ended(r: float, f: dict):
     with BuildPart() as part:
         with BuildSketch() as sk:
             with BuildLine() as ln:
-                # Convex arc: right tangent -> left tangent
-                RadiusArc((cvx_r_x, cvx_r_y), (cvx_l_x, cvx_l_y), r)
+                # Convex arc: right intersection -> left intersection
+                RadiusArc(cvx_r, cvx_l, r)
 
-                # Left side down
-                if cvx_tangent_x < main_hw:
-                    Line((cvx_l_x, cvx_l_y), (-main_hw, cvx_l_y))
-                    Line((-main_hw, cvx_l_y), (-main_hw, body_bot))
-                else:
-                    Line((cvx_l_x, cvx_l_y), (-main_hw, body_bot))
+                # Left side straight down
+                Line(cvx_l, (-hw, body_bot))
 
                 # Concave corner arc at bottom
-                if ccv_notch_hw < main_hw:
-                    Line((-main_hw, body_bot), (-ccv_notch_hw, body_bot))
+                if ccv_notch_hw < hw:
+                    Line((-hw, body_bot), (-ccv_notch_hw, body_bot))
                 RadiusArc((-ccv_notch_hw, body_bot), (ccv_notch_hw, body_bot), -r)
-                if ccv_notch_hw < main_hw:
-                    Line((ccv_notch_hw, body_bot), (main_hw, body_bot))
+                if ccv_notch_hw < hw:
+                    Line((ccv_notch_hw, body_bot), (hw, body_bot))
 
-                # Right side up with edge notch (concave into body)
-                Line((main_hw, body_bot), (main_hw, notch_bot))
-                RadiusArc((main_hw, notch_bot), (main_hw, notch_top), r)
+                # Right side up with edge notch
+                Line((hw, body_bot), (hw, notch_bot))
+                RadiusArc((hw, notch_bot), (hw, notch_top), r)
 
-                # Right side to convex tangent
-                if cvx_tangent_x < main_hw:
-                    Line((main_hw, notch_top), (main_hw, cvx_r_y))
-                    Line((main_hw, cvx_r_y), (cvx_r_x, cvx_r_y))
-                else:
-                    Line((main_hw, notch_top), (cvx_r_x, cvx_r_y))
+                # Right side up to convex intersection
+                Line((hw, notch_top), cvx_r)
 
             make_face()
         extrude(amount=f["thickness"])
 
-        # String hole — offset toward concave end
+        # String hole
         hole_y = body_bot + abs(body_bot) * 0.35
         with Locations([(0, hole_y)]):
             Hole(radius=f["hole_dia"] / 2.0, depth=f["thickness"])
 
-        # Fillet all Z-parallel corners for comfort.
-        # Skip the string hole edges (small radius, near hole center).
-        z_edges = part.part.edges().filter_by(Axis.Z)
-        hole_y = body_bot + abs(body_bot) * 0.35
+        # Fillet body corners
         corner_r = f["corner_r"]
+        z_edges = part.part.edges().filter_by(Axis.Z)
         body_corners = [e for e in z_edges
                         if not (abs(e.center().Y - hole_y) < f["hole_dia"]
                                 and abs(e.center().X) < f["hole_dia"])]
