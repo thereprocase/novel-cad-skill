@@ -95,9 +95,9 @@ def _build_dual_ended(r: float, f: dict):
     ccv_half = CONCAVE_CORNER_SWEEP / 2.0
     edge_half = CONCAVE_EDGE_SWEEP / 2.0
 
-    # Convex tangent spread
+    # Body width matches convex arc tangent spread — no shelf at transition
     cvx_tangent_x = r * math.sin(math.radians(cvx_half))
-    main_hw = max(hw, cvx_tangent_x)
+    main_hw = cvx_tangent_x
 
     # Handle length
     handle_len = max(f["min_handle"], 2.0 * r + 15.0)
@@ -110,13 +110,10 @@ def _build_dual_ended(r: float, f: dict):
     cvx_l_x = -cvx_r_x
     cvx_l_y = cvx_r_y
 
-    # Concave notch geometry
+    # Concave notch geometry — clamp to body width if needed
     ccv_notch_hw = r * math.sin(math.radians(ccv_half))
-    if ccv_notch_hw > hw:
-        effective_ccv_half = math.degrees(math.asin(hw / r))
-        ccv_notch_hw = hw
-    else:
-        effective_ccv_half = ccv_half
+    if ccv_notch_hw > main_hw:
+        ccv_notch_hw = main_hw
 
     # Side notch geometry
     edge_notch_hw = r * math.sin(math.radians(edge_half))
