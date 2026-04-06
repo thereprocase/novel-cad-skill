@@ -95,25 +95,31 @@ def build_talon(r: float, params: dict):
     ccv_end = _pt(ccv_cx, ccv_cy, r, ccv_end_angle)
     ccv_tan_angle = ccv_end_angle - 90
 
-    # --- Short tangent departures for G1 (just structural wall) ---
-    tang_len = max(3.0, 0.06 * r)
+    # --- Tangent departures: long enough to contain the string hole ---
+    min_wall = params["min_wall_around_hole"]
+    tang_len = max(hole_dia / 2.0 + min_wall, 0.06 * r)
     cvx_depart = (cvx_end[0] + tang_len * math.cos(math.radians(cvx_tan_angle)),
                   cvx_end[1] + tang_len * math.sin(math.radians(cvx_tan_angle)))
     ccv_depart = (ccv_end[0] + tang_len * math.cos(math.radians(ccv_tan_angle)),
                   ccv_end[1] + tang_len * math.sin(math.radians(ccv_tan_angle)))
 
     # --- Edge notch on concave tangent line ---
+    # Only add notch if the tangent line is long enough to hold it
+    # without creating thin fin artifacts. Need at least 2x the notch
+    # chord length to leave structural material on both sides.
     ccv_tang_dx = math.cos(math.radians(ccv_tan_angle))
     ccv_tang_dy = math.sin(math.radians(ccv_tan_angle))
     notch_half_len = r * math.sin(math.radians(half_edge))
-    if notch_half_len * 2 > tang_len * 0.8:
-        notch_half_len = tang_len * 0.4
-    notch_t1 = tang_len * 0.5 - notch_half_len
-    notch_t2 = tang_len * 0.5 + notch_half_len
-    notch_p1 = (ccv_end[0] + notch_t1 * ccv_tang_dx,
-                ccv_end[1] + notch_t1 * ccv_tang_dy)
-    notch_p2 = (ccv_end[0] + notch_t2 * ccv_tang_dx,
-                ccv_end[1] + notch_t2 * ccv_tang_dy)
+    min_tang_for_notch = notch_half_len * 2 + 4.0  # notch chord + 2mm margin each side
+    has_notch = tang_len >= min_tang_for_notch
+
+    if has_notch:
+        notch_t1 = tang_len * 0.5 - notch_half_len
+        notch_t2 = tang_len * 0.5 + notch_half_len
+        notch_p1 = (ccv_end[0] + notch_t1 * ccv_tang_dx,
+                    ccv_end[1] + notch_t1 * ccv_tang_dy)
+        notch_p2 = (ccv_end[0] + notch_t2 * ccv_tang_dx,
+                    ccv_end[1] + notch_t2 * ccv_tang_dy)
 
     # --- Back profile with optional hole boss ---
     back_dx = ccv_depart[0] - cvx_depart[0]
@@ -133,13 +139,10 @@ def build_talon(r: float, params: dict):
     boss_depth = hole_r + min_wall  # perpendicular outward from back line
     needs_boss = tang_len < boss_depth
 
-    # Hole center: midpoint of back line, offset outward by boss_depth if boss
-    if needs_boss:
-        hole_center = (back_mid[0] + (boss_depth - tang_len * 0.5) * perp[0],
-                       back_mid[1] + (boss_depth - tang_len * 0.5) * perp[1])
-    else:
-        hole_center = (0.55 * cvx_depart[0] + 0.45 * ccv_depart[0],
-                       0.55 * cvx_depart[1] + 0.45 * ccv_depart[1])
+    # Hole on the convex tangent line midpoint — widest part of the body,
+    # far from the concave tangent junction where thin fins form.
+    hole_center = ((cvx_end[0] + cvx_depart[0]) / 2.0,
+                   (cvx_end[1] + cvx_depart[1]) / 2.0)
 
     # Boss geometry: rectangular bump along back line, centered at back midpoint
     boss_half_w = (hole_dia + 2 * min_wall) / 2.0  # half-width along back line
@@ -165,19 +168,15 @@ def build_talon(r: float, params: dict):
                 RadiusArc((0, 0), cvx_end, r)
                 # G1 tangent departure
                 Line(cvx_end, cvx_depart)
-                # Straight back with optional hole boss
-                if needs_boss:
-                    Line(cvx_depart, boss_p1)
-                    Line(boss_p1, boss_p1_out)
-                    Line(boss_p1_out, boss_p2_out)
-                    Line(boss_p2_out, boss_p2)
-                    Line(boss_p2, ccv_depart)
+                # Straight back — no boss, tangent lines are long enough for hole
+                Line(cvx_depart, ccv_depart)
+                # Concave tangent (with edge notch if tangent is long enough)
+                if has_notch:
+                    Line(ccv_depart, notch_p2)
+                    RadiusArc(notch_p2, notch_p1, r)
+                    Line(notch_p1, ccv_end)
                 else:
-                    Line(cvx_depart, ccv_depart)
-                # Concave tangent with edge notch
-                Line(ccv_depart, notch_p2)
-                RadiusArc(notch_p2, notch_p1, r)
-                Line(notch_p1, ccv_end)
+                    Line(ccv_depart, ccv_end)
                 # Concave gauging arc
                 RadiusArc(ccv_end, (0, 0), -r)
             make_face()
@@ -196,17 +195,19 @@ def build_talon(r: float, params: dict):
             except Exception:
                 pass
 
-        # Tip fillet
+        # Fillet ALL Z-parallel edges (body corners + tip + junctions)
+        # This rounds the sharp junction corners that create fin artifacts
         z_edges = part.part.edges().filter_by(Axis.Z)
-        tip_edges = [e for e in z_edges if math.hypot(e.center().X, e.center().Y) < 2.0]
-        if tip_edges and tip_r > 0:
+        if z_edges:
             try:
-                fillet(tip_edges, radius=tip_r)
+                fillet(z_edges, radius=tip_r)
             except Exception:
-                try:
-                    fillet(tip_edges, radius=tip_r * 0.5)
-                except Exception:
-                    print(f"  WARNING: Tip fillet failed at {tip_r}mm")
+                # Try individually — some edges may be too short
+                for e in z_edges:
+                    try:
+                        fillet([e], radius=tip_r)
+                    except Exception:
+                        pass
 
     return part.part
 
