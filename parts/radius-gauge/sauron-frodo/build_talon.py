@@ -103,28 +103,18 @@ def build_talon(r: float, params: dict):
     ccv_depart = (ccv_end[0] + tang_len * math.cos(math.radians(ccv_tan_angle)),
                   ccv_end[1] + tang_len * math.sin(math.radians(ccv_tan_angle)))
 
-    # --- Edge notch on concave tangent line ---
-    # Only add notch if the tangent line is long enough to hold it
-    # without creating thin fin artifacts. Need at least 2x the notch
-    # chord length to leave structural material on both sides.
-    ccv_tang_dx = math.cos(math.radians(ccv_tan_angle))
-    ccv_tang_dy = math.sin(math.radians(ccv_tan_angle))
-    notch_half_len = r * math.sin(math.radians(half_edge))
-    min_tang_for_notch = notch_half_len * 2 + 4.0  # notch chord + 2mm margin each side
-    has_notch = tang_len >= min_tang_for_notch
-
-    if has_notch:
-        notch_t1 = tang_len * 0.5 - notch_half_len
-        notch_t2 = tang_len * 0.5 + notch_half_len
-        notch_p1 = (ccv_end[0] + notch_t1 * ccv_tang_dx,
-                    ccv_end[1] + notch_t1 * ccv_tang_dy)
-        notch_p2 = (ccv_end[0] + notch_t2 * ccv_tang_dx,
-                    ccv_end[1] + notch_t2 * ccv_tang_dy)
-
-    # --- Back profile with optional hole boss ---
+    # --- Back line geometry ---
     back_dx = ccv_depart[0] - cvx_depart[0]
     back_dy = ccv_depart[1] - cvx_depart[1]
     back_len = math.hypot(back_dx, back_dy)
+
+    # --- Edge notch on the back line ---
+    notch_half_len = r * math.sin(math.radians(half_edge))
+    # Clamp notch chord to 50% of back line to leave structural material
+    if notch_half_len * 2 > back_len * 0.5:
+        notch_half_len = back_len * 0.25
+    min_back_for_notch = notch_half_len * 2 + 4.0
+    has_notch = back_len >= min_back_for_notch
     back_unit = (back_dx / back_len, back_dy / back_len)
 
     # Perpendicular direction (outward, away from tip at origin)
@@ -168,15 +158,24 @@ def build_talon(r: float, params: dict):
                 RadiusArc((0, 0), cvx_end, r)
                 # G1 tangent departure
                 Line(cvx_end, cvx_depart)
-                # Straight back — no boss, tangent lines are long enough for hole
-                Line(cvx_depart, ccv_depart)
-                # Concave tangent (with edge notch if tangent is long enough)
+                # Back line with edge notch scallop
                 if has_notch:
-                    Line(ccv_depart, notch_p2)
-                    RadiusArc(notch_p2, notch_p1, r)
-                    Line(notch_p1, ccv_end)
+                    # Notch on back line (midpoint, clamped to 50% of back_len)
+                    notch_t1 = 0.5 - notch_half_len / back_len
+                    notch_t2 = 0.5 + notch_half_len / back_len
+                    notch_t1 = max(0.1, notch_t1)
+                    notch_t2 = min(0.9, notch_t2)
+                    bp1 = (cvx_depart[0] + notch_t1 * back_dx,
+                           cvx_depart[1] + notch_t1 * back_dy)
+                    bp2 = (cvx_depart[0] + notch_t2 * back_dx,
+                           cvx_depart[1] + notch_t2 * back_dy)
+                    Line(cvx_depart, bp1)
+                    RadiusArc(bp1, bp2, r)  # concave into body
+                    Line(bp2, ccv_depart)
                 else:
-                    Line(ccv_depart, ccv_end)
+                    Line(cvx_depart, ccv_depart)
+                # Concave tangent (straight, no notch here)
+                Line(ccv_depart, ccv_end)
                 # Concave gauging arc
                 RadiusArc(ccv_end, (0, 0), -r)
             make_face()
