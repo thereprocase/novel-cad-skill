@@ -105,10 +105,10 @@ def _build_dual_ended(r: float, f: dict):
     Coordinate system:
       - Convex arc centered at origin, tip at (+r, 0)
       - Body extends in -X direction
-      - Concave arc at far left end, prongs extending past body edge
+      - Concave scoop bites into the left end of the body
 
-    The concave scoop's deepest point sits at the body's left edge.
-    The two prong tips extend further left, forming a visible U-shape.
+    The concave scoop endpoints sit on the body's left edge.
+    The arc curves rightward (+X) into the body like a bite.
     """
     half_cvx = f["convex_sweep"] / 2.0
     half_ccv = f["concave_corner_sweep"] / 2.0
@@ -125,25 +125,17 @@ def _build_dual_ended(r: float, f: dict):
     hw = cvx_top[1]
 
     # --- Concave arc positioning ---
-    # Place concave center so the scoop's deepest point (rightmost,
-    # at angle 0) sits at body_left_x. Prong tips at angles ±half_ccv
-    # extend further left past the body edge.
+    # Arc endpoints sit on the body's left edge at y = ±ccv_hw.
+    # The arc center is placed so the scoop curves rightward into the body.
     total_len = max(f["min_total_length"], 3.0 * r + 10.0)
     body_left_x = -(total_len - r)
-    # Deepest point of scoop = cx_ccv + r = body_left_x
-    cx_ccv = body_left_x - r
 
-    # Concave arc endpoints at ±half_ccv from center
-    ccv_top = _pt(cx_ccv, 0, r, half_ccv)
-    ccv_bot = _pt(cx_ccv, 0, r, -half_ccv)
-    ccv_hw = abs(ccv_top[1])
+    # Half-width of the concave scoop on the left edge
+    ccv_hw = r * math.sin(math.radians(half_ccv))
 
-    # The prong base is where the scoop meets the body edge.
-    # At the body_left_x line, the scoop surface is at body_left_x = cx_ccv + r.
-    # The prongs extend from the body edge at Y = ±ccv_hw out to the
-    # arc endpoint tips at (ccv_top[0], ±ccv_hw).
-    prong_base_top = (body_left_x, ccv_hw)
-    prong_base_bot = (body_left_x, -ccv_hw)
+    # Arc endpoints on the body's left edge
+    ccv_top = (body_left_x, ccv_hw)
+    ccv_bot = (body_left_x, -ccv_hw)
 
     # --- Edge notch on top edge (40-deg concave) ---
     handle_start_x = cvx_top[0]
@@ -174,35 +166,27 @@ def _build_dual_ended(r: float, f: dict):
 
                 # 2. Top edge with notch
                 Line(cvx_top, notch_right)
-                RadiusArc(notch_right, notch_left, -r)
+                RadiusArc(notch_right, notch_left, r)
 
-                # 3. Top side to concave end
+                # 3. Top side to concave scoop top
                 if abs(ccv_hw - hw) > 0.1:
                     # Body is wider than concave arc: run to body corner,
-                    # then drop to prong base
+                    # then drop to scoop endpoint
                     Line(notch_left, (body_left_x, hw))
-                    Line((body_left_x, hw), prong_base_top)
+                    Line((body_left_x, hw), ccv_top)
                 else:
-                    Line(notch_left, prong_base_top)
+                    Line(notch_left, ccv_top)
 
-                # 4. Top prong: from base to tip
-                Line(prong_base_top, ccv_top)
-
-                # 5. Concave scoop arc: top -> bot (scooping rightward).
-                #    ccv_top at angle +half_ccv, ccv_bot at -half_ccv.
-                #    Short arc (positive r) passes through angle 0 =
-                #    rightmost point = scoop into body.
+                # 4. Concave scoop arc: top -> bot (scooping rightward into body).
+                #    Positive r = minor arc = curves toward +X (into body).
                 RadiusArc(ccv_top, ccv_bot, r)
 
-                # 6. Bottom prong: tip to base
-                Line(ccv_bot, prong_base_bot)
-
-                # 7. Bottom side back to convex
+                # 5. Bottom side back to convex
                 if abs(ccv_hw - hw) > 0.1:
-                    Line(prong_base_bot, (body_left_x, -hw))
+                    Line(ccv_bot, (body_left_x, -hw))
                     Line((body_left_x, -hw), cvx_bot)
                 else:
-                    Line(prong_base_bot, cvx_bot)
+                    Line(ccv_bot, cvx_bot)
 
             make_face()
         extrude(amount=thickness)
