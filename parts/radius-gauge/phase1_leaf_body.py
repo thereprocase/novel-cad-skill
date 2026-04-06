@@ -58,12 +58,12 @@ FORM_FACTORS = {
         "convex_sweep": 90,
         "concave_corner_sweep": 80,
         "concave_edge_sweep": 40,
-        "jaw_angle": 160,
+        "jaw_angle": 110,
         "hole_dia": 5.0,
         "corner_r": 2.0,
         "tip_r": 0.4,
-        "body_extension_factor": 0.5,
-        "min_body_extension": 20.0,
+        "back_bulge": 0.5,         # fraction of r for back curve outward bulge
+        "min_back_padding": 12.0,  # min padding beyond arc endpoints for hole/text
     },
     "large": {
         "architecture": "talon",
@@ -71,12 +71,12 @@ FORM_FACTORS = {
         "convex_sweep": 60,
         "concave_corner_sweep": 80,
         "concave_edge_sweep": 40,
-        "jaw_angle": 140,
+        "jaw_angle": 90,
         "hole_dia": 6.0,
         "corner_r": 3.0,
         "tip_r": 0.6,
-        "body_extension_factor": 0.4,
-        "min_body_extension": 25.0,
+        "back_bulge": 0.30,
+        "min_back_padding": 10.0,
     },
 }
 
@@ -209,12 +209,14 @@ def _build_dual_ended(r: float, f: dict):
 # ---------------------------------------------------------------------------
 
 def _build_talon(r: float, f: dict):
-    """Build a talon leaf with G1-continuous transitions.
+    """Build a talon-shaped leaf — tight hook like a raptor's claw.
 
-    Horizontal orientation: tip at right (+X), body extends left (-X).
-    Convex arc sweeps upward from tip, concave arc sweeps downward.
-    Tangent lines depart arc endpoints for G1 continuity, then
-    vertical segments connect to the back spine.
+    The tip is at the origin with the jaw opening rightward (+X).
+    Convex arc sweeps upward from the tip, concave arc sweeps downward.
+    Tangent lines depart from arc endpoints for G1 continuity, then a
+    smooth back arc connects them to form a teardrop/talon silhouette.
+    The 40-deg concave edge notch sits on the concave-side tangent line
+    (non-gauging surface). String hole is in the widest part of the body.
     """
     cvx_sweep = f["convex_sweep"]
     ccv_sweep = f["concave_corner_sweep"]
@@ -224,130 +226,132 @@ def _build_talon(r: float, f: dict):
     hole_dia = f["hole_dia"]
     corner_r = f["corner_r"]
     tip_r = f["tip_r"]
+    back_bulge = f["back_bulge"]
+    min_back_pad = f["min_back_padding"]
     half_jaw = jaw_angle / 2.0
 
     # --- Arc centers ---
-    # Tip at origin, jaw opens rightward (+X). The bisector of the jaw
-    # angle lies along +X. Convex center is left-and-slightly-below,
-    # concave center is left-and-slightly-above (mirror about X axis).
-    # The angle (90 - half_jaw) measures the tilt of the radius from
-    # the -X axis toward the tip.
+    # Tip at origin. The jaw bisector is along +X.
+    # Convex center below the jaw bisector, concave center above.
     cvx_cx = -r * math.cos(math.radians(90 - half_jaw))
     cvx_cy = -r * math.sin(math.radians(90 - half_jaw))
     ccv_cx = cvx_cx
     ccv_cy = -cvx_cy
 
-    # --- Convex arc: tip to cvx_end (CCW, sweeps upward then left) ---
+    # --- Convex arc: tip -> cvx_end (CCW, sweeps upward then back) ---
     tip_angle_cvx = math.degrees(math.atan2(0 - cvx_cy, 0 - cvx_cx))
     cvx_end_angle = tip_angle_cvx + cvx_sweep
     cvx_end = _pt(cvx_cx, cvx_cy, r, cvx_end_angle)
-    # CCW tangent at cvx_end: +90 from radius direction
-    cvx_tan = (math.cos(math.radians(cvx_end_angle + 90)),
-               math.sin(math.radians(cvx_end_angle + 90)))
+    cvx_tan_angle = cvx_end_angle + 90
 
-    # --- Concave arc: tip to ccv_end (CW, sweeps downward then left) ---
+    # --- Concave arc: tip -> ccv_end (CW, sweeps downward then back) ---
     tip_angle_ccv = math.degrees(math.atan2(0 - ccv_cy, 0 - ccv_cx))
     ccv_end_angle = tip_angle_ccv - ccv_sweep
     ccv_end = _pt(ccv_cx, ccv_cy, r, ccv_end_angle)
-    # CW tangent at ccv_end: -90 from radius direction
-    ccv_tan = (math.cos(math.radians(ccv_end_angle - 90)),
-               math.sin(math.radians(ccv_end_angle - 90)))
+    ccv_tan_angle = ccv_end_angle - 90
 
-    # --- Body layout ---
-    # Short tangent departure for G1 continuity, then vertical to spine Y,
-    # then horizontal spine connecting top and bottom.
-    body_ext = max(f["min_body_extension"], r * f["body_extension_factor"])
-    tang_len = min(5.0, 0.2 * r)
+    # --- Tangent departures for G1 continuity ---
+    # Tangent length scales with radius but must be long enough to
+    # create a body region that fits the string hole with wall margin.
+    min_tang_for_hole = hole_dia + 6.0  # hole diameter + wall on each side
+    tang_len = max(min_tang_for_hole, 0.3 * r)
+    cvx_depart = (cvx_end[0] + tang_len * math.cos(math.radians(cvx_tan_angle)),
+                  cvx_end[1] + tang_len * math.sin(math.radians(cvx_tan_angle)))
+    ccv_depart = (ccv_end[0] + tang_len * math.cos(math.radians(ccv_tan_angle)),
+                  ccv_end[1] + tang_len * math.sin(math.radians(ccv_tan_angle)))
 
-    # Extend tangent from convex end
-    top_tang_end = (cvx_end[0] + tang_len * cvx_tan[0],
-                    cvx_end[1] + tang_len * cvx_tan[1])
+    # --- Back connecting arc ---
+    back_dx = ccv_depart[0] - cvx_depart[0]
+    back_dy = ccv_depart[1] - cvx_depart[1]
+    back_chord = math.hypot(back_dx, back_dy)
+    back_mid = ((cvx_depart[0] + ccv_depart[0]) / 2.0,
+                (cvx_depart[1] + ccv_depart[1]) / 2.0)
 
-    # Extend tangent from concave end
-    bot_tang_end = (ccv_end[0] + tang_len * ccv_tan[0],
-                    ccv_end[1] + tang_len * ccv_tan[1])
+    # Bulge direction: perpendicular to chord, pointing away from tip.
+    chord_angle = math.atan2(back_dy, back_dx)
+    perp_angle = chord_angle - math.pi / 2.0
+    bulge_dist = max(back_bulge * r, min_back_pad)
+    if math.cos(perp_angle) > 0:
+        perp_angle += math.pi
 
-    # Spine Y: vertical back edge, left of everything.
-    # Place it body_ext past the leftmost tangent endpoint.
-    spine_x = min(top_tang_end[0], bot_tang_end[0]) - body_ext
-    spine_x = min(spine_x, -body_ext * 0.3)
+    half_chord = back_chord / 2.0
+    sagitta = max(bulge_dist, 0.1)
+    back_r = (sagitta * sagitta + half_chord * half_chord) / (2.0 * sagitta)
 
-    # Vertical segments from tangent endpoints down/up to spine
-    top_spine = (spine_x, top_tang_end[1])
-    bot_spine = (spine_x, bot_tang_end[1])
-
-    # --- Edge notch on the back spine (vertical left edge) ---
-    spine_mid_y = (top_spine[1] + bot_spine[1]) / 2.0
-    spine_len = abs(top_spine[1] - bot_spine[1])
-    notch_hh = r * math.sin(math.radians(half_edge))
-    if spine_len < 4 * notch_hh:
-        notch_hh = spine_len * 0.2
-
-    notch_top = (spine_x, spine_mid_y + notch_hh)
-    notch_bot = (spine_x, spine_mid_y - notch_hh)
+    # --- Edge notch on the concave-side tangent line ---
+    # The notch is a concave scallop (40-deg arc) cut into the tangent
+    # line between ccv_end and ccv_depart. Place it at the midpoint.
+    ccv_tang_dx = math.cos(math.radians(ccv_tan_angle))
+    ccv_tang_dy = math.sin(math.radians(ccv_tan_angle))
+    notch_half_len = r * math.sin(math.radians(half_edge))
+    # Clamp notch size to fit on the tangent line
+    if notch_half_len * 2 > tang_len * 0.6:
+        notch_half_len = tang_len * 0.3
+    notch_center_t = tang_len * 0.5  # midpoint of tangent line
+    notch_t1 = notch_center_t - notch_half_len
+    notch_t2 = notch_center_t + notch_half_len
+    notch_p1 = (ccv_end[0] + notch_t1 * ccv_tang_dx,
+                ccv_end[1] + notch_t1 * ccv_tang_dy)
+    notch_p2 = (ccv_end[0] + notch_t2 * ccv_tang_dx,
+                ccv_end[1] + notch_t2 * ccv_tang_dy)
 
     # --- String hole ---
-    hole_x = (spine_x + min(cvx_end[0], ccv_end[0])) / 2.0
-    hole_y = spine_mid_y
+    # Back arc center for computing the apex (thickest point).
+    back_center = (back_mid[0] + (back_r - sagitta) * math.cos(perp_angle + math.pi),
+                   back_mid[1] + (back_r - sagitta) * math.sin(perp_angle + math.pi))
+    back_a_mid_angle = math.atan2(
+        back_mid[1] + sagitta * math.sin(perp_angle) - back_center[1],
+        back_mid[0] + sagitta * math.cos(perp_angle) - back_center[0])
+    back_apex = (back_center[0] + back_r * math.cos(back_a_mid_angle),
+                 back_center[1] + back_r * math.sin(back_a_mid_angle))
 
-    # --- Build CCW profile ---
+    # Place hole between cvx_depart and back apex.
+    hole_center = (0.55 * cvx_depart[0] + 0.45 * back_apex[0],
+                   0.55 * cvx_depart[1] + 0.45 * back_apex[1])
+    hole_r = hole_dia / 2.0
+
+    # --- Build profile ---
     with BuildPart() as part:
         with BuildSketch() as sk:
             with BuildLine() as ln:
-                # Convex arc: tip -> cvx_end (CCW, positive r)
+                # 1. Convex arc: tip -> cvx_end (unbroken gauging surface)
                 RadiusArc((0, 0), cvx_end, r)
 
-                # Top tangent departure (G1)
-                Line(cvx_end, top_tang_end)
+                # 2. G1 tangent departure from convex end
+                Line(cvx_end, cvx_depart)
 
-                # Vertical to spine (top)
-                if abs(top_tang_end[0] - spine_x) > 0.01:
-                    Line(top_tang_end, top_spine)
+                # 3. Back arc: smooth curve connecting the two tangent
+                #    departure points, bulging away from the tip.
+                RadiusArc(cvx_depart, ccv_depart, -back_r)
 
-                # Spine top -> notch top
-                Line(top_spine, notch_top)
+                # 4. Concave-side tangent: ccv_depart -> notch -> ccv_end
+                #    Split into three parts with a concave scallop notch.
+                Line(ccv_depart, notch_p2)
 
-                # Edge notch: vertical, curving into body (+X direction)
-                RadiusArc(notch_top, notch_bot, r)
+                # 5. Edge notch: 40-deg concave arc on the tangent line.
+                #    Positive r = the arc curves inward (toward the body).
+                RadiusArc(notch_p2, notch_p1, r)
 
-                # Notch bot -> spine bot
-                Line(notch_bot, bot_spine)
+                # 6. Rest of tangent line to concave arc endpoint
+                Line(notch_p1, ccv_end)
 
-                # Vertical from spine to bottom tangent start
-                if abs(bot_tang_end[0] - spine_x) > 0.01:
-                    Line(bot_spine, bot_tang_end)
-
-                # Bottom tangent line to ccv_end (G1)
-                Line(bot_tang_end, ccv_end)
-
-                # Concave arc: ccv_end -> tip
+                # 7. Concave arc: ccv_end -> tip (unbroken gauging surface)
                 RadiusArc(ccv_end, (0, 0), -r)
 
             make_face()
         extrude(amount=thickness)
 
-        with Locations([(hole_x, hole_y)]):
-            Hole(radius=hole_dia / 2.0, depth=thickness)
+        # String hole
+        with Locations([(hole_center[0], hole_center[1])]):
+            Hole(radius=hole_r, depth=thickness)
 
-        # Fillet body corners and tip
+        # Fillet tip
         z_edges = part.part.edges().filter_by(Axis.Z)
         tip_edges = []
-        body_corners = []
         for e in z_edges:
             c = e.center()
             if math.hypot(c.X, c.Y) < 2.0:
                 tip_edges.append(e)
-            elif c.X < min(cvx_end[0], ccv_end[0]) - 1.0:
-                body_corners.append(e)
-
-        if body_corners:
-            try:
-                fillet(body_corners, radius=corner_r)
-            except Exception:
-                try:
-                    fillet(body_corners, radius=corner_r * 0.5)
-                except Exception:
-                    pass
 
         if tip_edges and tip_r > 0:
             try:
