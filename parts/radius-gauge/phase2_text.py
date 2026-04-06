@@ -18,6 +18,7 @@ from pathlib import Path
 from build123d import (
     BuildPart,
     BuildSketch,
+    Color,
     Compound,
     FontStyle,
     Hole,
@@ -108,8 +109,8 @@ def _compute_text_area_small(radius_mm: float, form: dict):
     # Half-width of body
     hw = cvx_top[1]
 
-    # String hole position (matches phase1_leaf_body.py)
-    hole_x = (cvx_top[0] + body_left_x) / 2.0
+    # String hole position (matches phase1_leaf_body.py: 35% from concave end)
+    hole_x = body_left_x + 0.35 * (cvx_top[0] - body_left_x)
     hole_y = 0.0
     hole_r = form["hole_dia"] / 2.0
 
@@ -405,12 +406,24 @@ def build_leaf_with_text(
     }
 
 
-def export_multibody(bodies: dict, filepath: str, label: str = "radius_gauge"):
-    """Export multi-body assembly as a single STEP file."""
+def export_multibody(bodies: dict, filepath: str, label: str = "radius_gauge",
+                     system: str = "sae"):
+    """Export multi-body assembly as a single STEP file.
+
+    Sets color metadata on each body: SAE leaf = blue, metric leaf = red,
+    all text inlays = white. Colors are embedded in the STEP file for
+    slicer import.
+    """
     # Label each body
     bodies["leaf"].label = "leaf"
     bodies["text_top"].label = "text_top"
     bodies["text_bottom"].label = "text_bottom"
+
+    # Set colors: SAE = blue, metric = red, text = white
+    leaf_color = Color("blue") if system == "sae" else Color("red")
+    bodies["leaf"].color = leaf_color
+    bodies["text_top"].color = Color("white")
+    bodies["text_bottom"].color = Color("white")
 
     assembly = Compound(
         label=label,
@@ -452,7 +465,8 @@ def main():
     # Export multi-body assembly
     assembly_path = out / f"leaf_R{radius:.2f}mm_assembly.step"
     export_multibody(bodies, str(assembly_path),
-                     label=f"radius_gauge_R{radius:.2f}mm")
+                     label=f"radius_gauge_R{radius:.2f}mm",
+                     system=system)
     print(f"\n  Assembly: {assembly_path}")
 
 

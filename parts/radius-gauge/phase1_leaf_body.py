@@ -154,7 +154,9 @@ def _build_dual_ended(r: float, f: dict):
     notch_left = (notch_cx - notch_dx, hw)
 
     # --- String hole ---
-    hole_x = handle_mid_x
+    # Offset toward concave-corner end: 35% from concave end toward convex end.
+    # This lets leaves hang with convex end up on the ring string.
+    hole_x = body_left_x + 0.35 * (cvx_top[0] - body_left_x)
     hole_y = 0.0
 
     # --- Build CCW profile ---

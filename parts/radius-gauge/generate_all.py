@@ -188,8 +188,12 @@ def generate_all(test_mode: bool = False, render_pngs: bool = False):
     print(f"  Output: {base_dir}")
     print(f"{'='*60}\n")
 
+    # Build-plate limit: Bambu P1S is 256x256mm, use 250mm with 6mm margin
+    BED_LIMIT_MM = 250.0
+
     successes = 0
     failures = []
+    oversized = []
     t_start = time.time()
 
     for i, leaf in enumerate(leaves, 1):
@@ -206,9 +210,18 @@ def generate_all(test_mode: bool = False, render_pngs: bool = False):
                 form_key=leaf["form_key"],
             )
 
+            # Build-plate size check
+            bb = bodies["leaf"].bounding_box()
+            x_dim, y_dim = bb.size.X, bb.size.Y
+            if x_dim > BED_LIMIT_MM or y_dim > BED_LIMIT_MM:
+                print(f"  WARNING: {x_dim:.1f} x {y_dim:.1f}mm exceeds "
+                      f"{BED_LIMIT_MM}mm bed limit!")
+                oversized.append((leaf, x_dim, y_dim))
+
             assembly_label = (f"radius_gauge_{leaf['system']}_"
                               f"R{leaf['radius_mm']:.4g}mm")
-            export_multibody(bodies, str(step_path), label=assembly_label)
+            export_multibody(bodies, str(step_path), label=assembly_label,
+                             system=leaf["system"])
             print(f"  -> {step_name}")
 
             if render_pngs:
@@ -234,11 +247,18 @@ def generate_all(test_mode: bool = False, render_pngs: bool = False):
     print(f"  Total:     {total}")
     print(f"  Success:   {successes}")
     print(f"  Failed:    {len(failures)}")
+    print(f"  Oversized: {len(oversized)}")
     print(f"  Time:      {elapsed:.1f}s ({elapsed/total:.1f}s/leaf)")
     print(f"  STEP dir:  {step_dir}")
     if render_pngs:
         print(f"  PNG dir:   {png_dir}")
     print(f"{'='*60}")
+
+    if oversized:
+        print(f"\nOversized leaves (exceed {BED_LIMIT_MM}mm bed limit):")
+        for leaf, x, y in oversized:
+            print(f"  {leaf['system']} {leaf['ring']} "
+                  f"R={leaf['radius_mm']:.4g}mm: {x:.1f} x {y:.1f}mm")
 
     if failures:
         print(f"\nFailed leaves:")
