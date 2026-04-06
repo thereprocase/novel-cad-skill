@@ -100,19 +100,19 @@ def _pt(cx, cy, r, angle_deg):
 # ---------------------------------------------------------------------------
 
 def _build_dual_ended(r: float, f: dict):
-    """Build a dual-ended leaf with G1-continuous arc-to-body transitions.
+    """Build a dual-ended leaf: convex arc on one end, concave scoop on other.
 
     Coordinate system:
       - Convex arc centered at origin, tip at (+r, 0)
       - Body extends in -X direction
-      - Concave arc at far left end, prongs protruding past body edge
+      - Concave arc at far left end, prongs extending past body edge
 
-    Profile traced CCW as closed loop.
+    The concave scoop's deepest point sits at the body's left edge.
+    The two prong tips extend further left, forming a visible U-shape.
     """
     half_cvx = f["convex_sweep"] / 2.0
     half_ccv = f["concave_corner_sweep"] / 2.0
     half_edge = f["concave_edge_sweep"] / 2.0
-    flare_len = f["flare_length"]
     thickness = f["thickness"]
     hole_dia = f["hole_dia"]
     corner_r = f["corner_r"]
@@ -121,128 +121,88 @@ def _build_dual_ended(r: float, f: dict):
     cvx_top = _pt(0, 0, r, half_cvx)
     cvx_bot = _pt(0, 0, r, -half_cvx)
 
-    # Tangent at cvx_top for CCW arc: perpendicular to radius, rotated +90deg
-    # Radius direction at angle +half_cvx: (cos(half_cvx), sin(half_cvx))
-    # CCW tangent: rotate +90: (-sin(half_cvx), cos(half_cvx))
-    top_tan = (-math.sin(math.radians(half_cvx)),
-                math.cos(math.radians(half_cvx)))
-
-    # Body departs cvx_top along this tangent (points left and up)
-    flare_top_end = (cvx_top[0] + flare_len * top_tan[0],
-                     cvx_top[1] + flare_len * top_tan[1])
-
-    # By symmetry, bottom flare mirrors top about X axis
-    flare_bot_end = (flare_top_end[0], -flare_top_end[1])
-
-    # Handle half-width = Y coordinate at flare end
-    hw = flare_top_end[1]
+    # Body half-width = Y of convex arc endpoints
+    hw = cvx_top[1]
 
     # --- Concave arc positioning ---
-    # Place concave center so prongs protrude past the body left edge.
-    # Body left edge X = concave deepest point X = cx_ccv + r.
-    # Concave prong tips at X = cx_ccv + r*cos(half_ccv), protruding left.
-    # Target total length (convex tip to concave prong tips):
+    # Place concave center so the scoop's deepest point (rightmost,
+    # at angle 0) sits at body_left_x. Prong tips at angles ±half_ccv
+    # extend further left past the body edge.
     total_len = max(f["min_total_length"], 3.0 * r + 10.0)
-    # Concave prong X = r - total_len (measuring from convex tip at x=r)
-    ccv_prong_x = r - total_len
-    # cx_ccv + r*cos(half_ccv) = ccv_prong_x
-    cx_ccv = ccv_prong_x - r * math.cos(math.radians(half_ccv))
+    body_left_x = -(total_len - r)
+    # Deepest point of scoop = cx_ccv + r = body_left_x
+    cx_ccv = body_left_x - r
 
+    # Concave arc endpoints at ±half_ccv from center
     ccv_top = _pt(cx_ccv, 0, r, half_ccv)
     ccv_bot = _pt(cx_ccv, 0, r, -half_ccv)
-    body_left_x = cx_ccv + r  # deepest point of concave scoop
+    ccv_hw = abs(ccv_top[1])
 
-    # --- G1 taper from handle to concave arc ---
-    # At ccv_top, the concave arc (top to bot, scooping right) departs in
-    # direction perpendicular to radius, CW: (sin(half_ccv), -cos(half_ccv)).
-    # The body taper line must arrive at ccv_top in that same direction.
-    # Taper line point = ccv_top + t * reverse_tangent, where:
-    ccv_tan = (math.sin(math.radians(half_ccv)), -math.cos(math.radians(half_ccv)))
-    # Reverse (direction from handle toward ccv_top):
-    ccv_rev = (-ccv_tan[0], -ccv_tan[1])
-    # Find t such that the taper start Y = hw (handle half-width):
-    # ccv_top[1] + t * ccv_rev[1] = hw
-    # t = (hw - ccv_top[1]) / ccv_rev[1]
-    if abs(ccv_rev[1]) > 1e-9:
-        t_taper = (hw - ccv_top[1]) / ccv_rev[1]
-    else:
-        t_taper = 10.0  # fallback
-    t_taper = max(t_taper, 0)
-
-    taper_top_start = (ccv_top[0] + t_taper * ccv_rev[0],
-                       ccv_top[1] + t_taper * ccv_rev[1])
-    taper_bot_start = (taper_top_start[0], -taper_top_start[1])
-
-    # Ensure enough handle length between flare end and taper start
-    handle_avail = flare_top_end[0] - taper_top_start[0]
-    min_handle = max(8.0, f["handle_length"] * 0.6)
-    if handle_avail < min_handle:
-        # Push concave end further left
-        shift = min_handle - handle_avail
-        cx_ccv -= shift
-        ccv_top = _pt(cx_ccv, 0, r, half_ccv)
-        ccv_bot = _pt(cx_ccv, 0, r, -half_ccv)
-        body_left_x = cx_ccv + r
-        if abs(ccv_rev[1]) > 1e-9:
-            t_taper = (hw - ccv_top[1]) / ccv_rev[1]
-        t_taper = max(t_taper, 0)
-        taper_top_start = (ccv_top[0] + t_taper * ccv_rev[0],
-                           ccv_top[1] + t_taper * ccv_rev[1])
-        taper_bot_start = (taper_top_start[0], -taper_top_start[1])
+    # The prong base is where the scoop meets the body edge.
+    # At the body_left_x line, the scoop surface is at body_left_x = cx_ccv + r.
+    # The prongs extend from the body edge at Y = ±ccv_hw out to the
+    # arc endpoint tips at (ccv_top[0], ±ccv_hw).
+    prong_base_top = (body_left_x, ccv_hw)
+    prong_base_bot = (body_left_x, -ccv_hw)
 
     # --- Edge notch on top edge (40-deg concave) ---
-    # Centered in handle region. Notch center above top edge at distance r.
-    handle_mid_x = (flare_top_end[0] + taper_top_start[0]) / 2.0
+    handle_start_x = cvx_top[0]
+    handle_end_x = body_left_x
+    handle_mid_x = (handle_start_x + handle_end_x) / 2.0
     notch_dx = r * math.sin(math.radians(half_edge))
 
-    # Clamp notch position to fit within handle
     notch_cx = handle_mid_x
     margin = 2.0
-    if notch_cx - notch_dx < taper_top_start[0] + margin:
-        notch_cx = taper_top_start[0] + margin + notch_dx
-    if notch_cx + notch_dx > flare_top_end[0] - margin:
-        notch_cx = flare_top_end[0] - margin - notch_dx
+    if notch_cx - notch_dx < handle_end_x + margin:
+        notch_cx = handle_end_x + margin + notch_dx
+    if notch_cx + notch_dx > handle_start_x - margin:
+        notch_cx = handle_start_x - margin - notch_dx
 
     notch_right = (notch_cx + notch_dx, hw)
     notch_left = (notch_cx - notch_dx, hw)
 
-    # --- String hole (offset toward concave end) ---
-    hole_x = taper_top_start[0] + (flare_top_end[0] - taper_top_start[0]) * 0.3
+    # --- String hole ---
+    hole_x = handle_mid_x
     hole_y = 0.0
 
     # --- Build CCW profile ---
     with BuildPart() as part:
         with BuildSketch() as sk:
             with BuildLine() as ln:
-                # 1. Convex arc: bot -> top (CCW, positive r)
-                RadiusArc(cvx_bot, cvx_top, r)
+                # 1. Convex arc: bot -> top, bulging right (+X).
+                RadiusArc(cvx_bot, cvx_top, -r)
 
-                # 2. Top tangent flare
-                Line(cvx_top, flare_top_end)
-
-                # 3. Top handle with notch
-                Line(flare_top_end, notch_right)
-                # Notch: horizontal concave curving down. Right to left, -r.
+                # 2. Top edge with notch
+                Line(cvx_top, notch_right)
                 RadiusArc(notch_right, notch_left, -r)
-                Line(notch_left, taper_top_start)
 
-                # 4. Taper to concave top (G1)
-                Line(taper_top_start, ccv_top)
+                # 3. Top side to concave end
+                if abs(ccv_hw - hw) > 0.1:
+                    # Body is wider than concave arc: run to body corner,
+                    # then drop to prong base
+                    Line(notch_left, (body_left_x, hw))
+                    Line((body_left_x, hw), prong_base_top)
+                else:
+                    Line(notch_left, prong_base_top)
 
-                # 5. Concave scoop: top -> bot
-                # Center is at (cx_ccv, 0), to the LEFT of endpoints.
-                # Travel from top to bot is -Y. Left of -Y is +X. Center is -X = right of travel.
-                # Use -r for center on right.
-                RadiusArc(ccv_top, ccv_bot, -r)
+                # 4. Top prong: from base to tip
+                Line(prong_base_top, ccv_top)
 
-                # 6. Taper from concave bot to handle (G1)
-                Line(ccv_bot, taper_bot_start)
+                # 5. Concave scoop arc: top -> bot (scooping rightward).
+                #    ccv_top at angle +half_ccv, ccv_bot at -half_ccv.
+                #    Short arc (positive r) passes through angle 0 =
+                #    rightmost point = scoop into body.
+                RadiusArc(ccv_top, ccv_bot, r)
 
-                # 7. Bottom handle (straight, no notch)
-                Line(taper_bot_start, flare_bot_end)
+                # 6. Bottom prong: tip to base
+                Line(ccv_bot, prong_base_bot)
 
-                # 8. Bottom tangent flare back to convex arc
-                Line(flare_bot_end, cvx_bot)
+                # 7. Bottom side back to convex
+                if abs(ccv_hw - hw) > 0.1:
+                    Line(prong_base_bot, (body_left_x, -hw))
+                    Line((body_left_x, -hw), cvx_bot)
+                else:
+                    Line(prong_base_bot, cvx_bot)
 
             make_face()
         extrude(amount=thickness)
@@ -251,8 +211,8 @@ def _build_dual_ended(r: float, f: dict):
         with Locations([(hole_x, hole_y)]):
             Hole(radius=hole_dia / 2.0, depth=thickness)
 
-        # Fillet cosmetic body corners only
-        _fillet_body_corners(part, corner_r, gauging_x_min=ccv_top[0],
+        # Fillet cosmetic body corners only (not gauging surfaces)
+        _fillet_body_corners(part, corner_r, gauging_x_min=body_left_x,
                             gauging_x_max=cvx_top[0])
 
     return part.part
