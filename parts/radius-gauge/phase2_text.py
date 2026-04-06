@@ -54,34 +54,26 @@ TEXT_FONT = "Arial"
 def _fraction_label(radius_mm: float) -> str:
     """Convert radius in mm to SAE fraction string.
 
-    Returns the simplest fraction representation.
+    Returns the simplest fraction representation. For sizes >= 1",
+    uses mixed number format: "1", "1-1/8", "2-1/4", etc.
     """
+    from fractions import Fraction
+
     inches = radius_mm / 25.4
-    # Common fractions we use in the gauge set
-    fractions = [
-        (1, 8), (5, 32), (3, 16), (7, 32),
-        (1, 4), (9, 32), (5, 16), (11, 32),
-        (3, 8), (13, 32), (7, 16), (15, 32), (1, 2),
-        (9, 16), (5, 8), (11, 16), (3, 4),
-        (13, 16), (7, 8), (15, 16), (1, 1),
-    ]
-    # Find closest fraction
-    best = None
-    best_err = float("inf")
-    for num, den in fractions:
-        val = num / den
-        err = abs(val - inches)
-        if err < best_err:
-            best_err = err
-            best = (num, den)
 
-    if best is None:
-        return f"{inches:.3f}"
+    # Snap to nearest 1/32 (finest resolution in the gauge set)
+    thirty_seconds = round(inches * 32)
+    frac = Fraction(thirty_seconds, 32)
 
-    num, den = best
-    if den == 1:
-        return str(num)
-    return f"{num}/{den}"
+    whole = int(frac)
+    remainder = frac - whole
+
+    if remainder == 0:
+        return str(whole) if whole > 0 else "0"
+    elif whole == 0:
+        return f"{remainder.numerator}/{remainder.denominator}"
+    else:
+        return f"{whole}-{remainder.numerator}/{remainder.denominator}"
 
 
 def _decimal_label(radius_mm: float) -> str:
@@ -141,6 +133,116 @@ def _compute_text_area_small(radius_mm: float, form: dict):
 
     center_x = (text_left + text_right) / 2.0
     center_y = 0.0
+
+    return center_x, center_y, text_width, text_height, hole_x, hole_y, hole_r
+
+
+def _compute_text_area_talon(radius_mm: float, form: dict):
+    """Compute available text area on a talon (medium/large) leaf.
+
+    The talon has tip at origin, body extending left (-X).
+    Text area is the rectangle between the arc endpoints and the spine,
+    avoiding the string hole.
+
+    Returns (center_x, center_y, available_width, available_height,
+             hole_x, hole_y, hole_r).
+    """
+    r = radius_mm
+    cvx_sweep = form["convex_sweep"]
+    ccv_sweep = form["concave_corner_sweep"]
+    jaw_angle = form["jaw_angle"]
+    hole_dia = form["hole_dia"]
+    half_jaw = jaw_angle / 2.0
+
+    # Replicate arc center / endpoint math from _build_talon
+    cvx_cx = -r * math.cos(math.radians(90 - half_jaw))
+    cvx_cy = -r * math.sin(math.radians(90 - half_jaw))
+    ccv_cx = cvx_cx
+    ccv_cy = -cvx_cy
+
+    tip_angle_cvx = math.degrees(math.atan2(0 - cvx_cy, 0 - cvx_cx))
+    cvx_end_angle = tip_angle_cvx + cvx_sweep
+    cvx_end = _pt(cvx_cx, cvx_cy, r, cvx_end_angle)
+
+    tip_angle_ccv = math.degrees(math.atan2(0 - ccv_cy, 0 - ccv_cx))
+    ccv_end_angle = tip_angle_ccv - ccv_sweep
+    ccv_end = _pt(ccv_cx, ccv_cy, r, ccv_end_angle)
+
+    # Tangent extensions
+    cvx_tan_dir = (math.cos(math.radians(cvx_end_angle + 90)),
+                   math.sin(math.radians(cvx_end_angle + 90)))
+    ccv_tan_dir = (math.cos(math.radians(ccv_end_angle - 90)),
+                   math.sin(math.radians(ccv_end_angle - 90)))
+
+    tang_len = min(5.0, 0.2 * r)
+    top_tang_end = (cvx_end[0] + tang_len * cvx_tan_dir[0],
+                    cvx_end[1] + tang_len * cvx_tan_dir[1])
+    bot_tang_end = (ccv_end[0] + tang_len * ccv_tan_dir[0],
+                    ccv_end[1] + tang_len * ccv_tan_dir[1])
+
+    body_ext = max(form["min_body_extension"], r * form["body_extension_factor"])
+    spine_x = min(top_tang_end[0], bot_tang_end[0]) - body_ext
+    spine_x = min(spine_x, -body_ext * 0.3)
+
+    # String hole (same as _build_talon)
+    spine_mid_y = (top_tang_end[1] + bot_tang_end[1]) / 2.0
+    hole_x = (spine_x + min(cvx_end[0], ccv_end[0])) / 2.0
+    hole_y = spine_mid_y
+    hole_r = hole_dia / 2.0
+
+    # Text area: right boundary is arc endpoints, left boundary is spine.
+    # Use the leftmost arc endpoint X as the right boundary (with margin).
+    arc_left_x = min(cvx_end[0], ccv_end[0])
+    text_right = arc_left_x - 3.0   # 3mm margin from arcs
+    text_left = spine_x + 3.0       # 3mm margin from spine
+
+    # Vertical bounds: between top and bottom tangent endpoints
+    text_top_y = top_tang_end[1] - 1.5   # 1.5mm margin from top edge
+    text_bot_y = bot_tang_end[1] + 1.5   # 1.5mm margin from bottom edge
+
+    text_width = text_right - text_left
+    text_height = text_top_y - text_bot_y
+
+    # Avoid the string hole. The hole is a circle at (hole_x, hole_y).
+    # Strategy: shift the text center Y away from the hole if needed,
+    # keeping the full width. Only split horizontally as a last resort.
+    hole_margin = hole_r + 1.5
+    center_x = (text_left + text_right) / 2.0
+    center_y = (text_top_y + text_bot_y) / 2.0
+
+    # Check if hole is within the text rectangle
+    if (text_left < hole_x + hole_margin and
+            hole_x - hole_margin < text_right and
+            text_bot_y < hole_y + hole_margin and
+            hole_y - hole_margin < text_top_y):
+        # Try shifting text center Y above or below the hole
+        # The text only occupies a band of ~font_height centered on center_y.
+        # Preferred text height is 6mm, so the band is about 6mm tall.
+        text_band = PREFERRED_TEXT_HEIGHT + 2.0  # text height + margin
+
+        # Option A: place text above hole
+        above_y = hole_y + hole_margin + text_band / 2.0
+        # Option B: place text below hole
+        below_y = hole_y - hole_margin - text_band / 2.0
+
+        if above_y + text_band / 2.0 <= text_top_y:
+            center_y = above_y
+        elif below_y - text_band / 2.0 >= text_bot_y:
+            center_y = below_y
+        else:
+            # Cannot shift vertically; split horizontally
+            zone_a_left = hole_x + hole_margin
+            zone_a_width = text_right - zone_a_left
+            zone_b_right = hole_x - hole_margin
+            zone_b_width = zone_b_right - text_left
+
+            if zone_a_width >= zone_b_width and zone_a_width > 0:
+                text_left = zone_a_left
+                text_width = zone_a_width
+            elif zone_b_width > 0:
+                text_right = zone_b_right
+                text_width = zone_b_width
+            center_x = (text_left + text_right) / 2.0
 
     return center_x, center_y, text_width, text_height, hole_x, hole_y, hole_r
 
@@ -206,22 +308,29 @@ def build_leaf_with_text(
             radius_mm, form
         )
     else:
-        # TODO: implement text area computation for talon leaves
-        cx, cy, aw, ah = 0, 0, 20, 10
-        hole_x, hole_y, hole_r = 0, 0, 3.0
+        cx, cy, aw, ah, hole_x, hole_y, hole_r = _compute_text_area_talon(
+            radius_mm, form
+        )
 
     font_size = _fit_text_size(top_label, aw, ah)
 
-    # Check if secondary label would overlap the string hole.
-    # Estimate text width and see if it extends into the hole clearance zone.
+    # Check if secondary label fits the available text area.
+    # For small leaves, also check string hole clearance since the text area
+    # may not account for hole overlap. For talon leaves, the text area
+    # already avoids the hole.
     if system == "sae" and bot_label != top_label:
         bot_test_size = _fit_text_size(bot_label, aw, ah)
         est_bot_width = len(bot_label) * bot_test_size * 0.6
-        # Clear zone needed: text must not overlap hole +1mm margin
-        hole_clear = 2.0 * (hole_r + 1.0)
-        if est_bot_width > aw - hole_clear:
-            print(f"  Secondary label '{bot_label}' too wide for handle "
-                  f"({est_bot_width:.1f}mm vs {aw - hole_clear:.1f}mm clear). "
+        if form_key == "small":
+            # Small leaves: additional hole clearance check
+            hole_clear = 2.0 * (hole_r + 1.0)
+            max_width = aw - hole_clear
+        else:
+            # Talon leaves: text area already avoids hole
+            max_width = aw
+        if est_bot_width > max_width:
+            print(f"  Secondary label '{bot_label}' too wide "
+                  f"({est_bot_width:.1f}mm vs {max_width:.1f}mm). "
                   f"Using primary on both faces.")
             bot_label = top_label
 
